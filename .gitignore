@@ -1,0 +1,69 @@
+# ---- 依赖与产物 ----
+node_modules/
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# ---- 运行时数据（不进仓库）----
+run/
+_临时/
+*.log
+
+# ---- 备份与快照 ----
+*.bak
+*.bak-*
+*.orig
+备份/
+
+# ---- 系统与编辑器 ----
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+
+# ---- 本地配置（含密钥/路径，不进仓库）----
+route-config.json
+.env
+.env.local
+*.local.json
+
+# ---- 测试临时 ----
+coverage/
+.nyc_output/
+_preview.html
+_t_*.html
+
+# ---- 中间快照与临时导出（不进仓库）----
+*.fixed-*
+*.fixed
+_tmp_*
+assets/_tmp_*
+# ══════════════════════════════════════════════════════════════
+# 敏感信息排除（推送前硬性要求，见 SECURITY.md）
+# ══════════════════════════════════════════════════════════════
+# 含真实公网 IP / 代理节点 / 账号手机号的运维记录（整类排除，不列举具体文件名）
+docs/
+_运维/
+*注册*通道*.md
+*账号盘点*.md
+*实测与真实账号*.md
+
+# 任何本地网络与凭据配置（注意：不排除 scripts/scan-secrets.mjs 这个防泄露工具本身）
+*credentials*
+*secret.*
+*secrets.json
+*.secret
+*.pem
+*.key
+*.p12
+*.pfx
+.env.*
+config.local.*
+*.local.*
+
+# 代理 / 订阅 / 节点
+*clash*
+*subscription*
+*subscribe*
