@@ -1,0 +1,66 @@
+{
+  "name": "dsh-ai-team-console",
+  "version": "0.8.0",
+  "private": true,
+  "description": "AI 团队控制台：DSH 侧边栏常驻面板 + 编排层 + 自我迭代。成员编制 / 能力域缺口（可招募，受 3 人封顶）/ handbook 验收自检 / 预设真身 / 10 步流水线（含 S6b 首件检查门）/ 结构化工件 schema / 复杂度路由 L0-L2 / 压缩回传与成本记账 / skill 蒸馏。",
+  "type": "module",
+  "main": "lib/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nanyinbeixun-boop/dsh-ai-team-console.git"
+  },
+  "scripts": {
+    "verify": "node scripts/selfcheck.mjs",
+    "verify-advanced": "node scripts/verify-advanced-orchestration.mjs",
+    "check-update": "node scripts/check-update.mjs"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": ">=3.18.5"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.5",
+    "@deepseek-ai/dsh-client-ui-slots": ">=0.2.1-rc.2"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.5"
+  },
+  "exports": {
+    ".": {
+      "import": "./lib/index.js"
+    },
+    "./client": "./lib/client.js"
+  },
+  "files": [
+    "lib",
+    "dsh",
+    "assets/icon-*.svg",
+    "assets/icon-*.png",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "deepseek",
+    "dsh",
+    "dsh-plugin",
+    "cordis",
+    "agent-team",
+    "console"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./dsh/cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-slots"
+      ]
+    }
+  }
+}
