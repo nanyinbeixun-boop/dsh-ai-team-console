@@ -2,11 +2,11 @@
 /**
  * 统一验证入口：跑全部 verify-* 脚本并汇总。
  *
- * 用法：
- *   node scripts/verify-all.mjs           # 跑全部，汇总表格
- *   node scripts/verify-all.mjs --fast    # 跳过 --slow 标记的脚本
- *   node scripts/verify-all.mjs routes    # 只跑名字含 "routes" 的
- *   node scripts/verify-all.mjs --json    # 机器可读
+ * 用法
+ * node scripts/verify-all.mjs # 跑全部，汇总表格
+ * node scripts/verify-all.mjs --fast # 跳过 --slow 标记的脚本
+ * node scripts/verify-all.mjs routes # 只跑名字含 "routes" 的
+ * node scripts/verify-all.mjs --json # 机器可读
  *
  * 退出码：全部通过 0，有失败 1，无法执行 2。
  */
@@ -63,11 +63,11 @@ async function main() {
     }
     const ms = Date.now() - t0
     if (status !== 'fail') {
-      // 非零退出码也可能是 script 主动 exit(1) 表示断言失败
+ // 非零退出码也可能是 script 主动 exit(1) 表示断言失败
       if (/\bpass=\d+\s+fail=[1-9]/.test(out)) status = 'fail'
       if (/未通过|不通过|FAIL\b/.test(out)) status = 'fail'
     }
-    // 取最后一行非空作为摘要
+ // 取最后一行非空作为摘要
     const lines = out.split('\n').map((l) => l.trim()).filter(Boolean)
     detail = lines.reverse().find((l) => /pass=|全部通过|通过|失败|fail=/i.test(l)) || lines[0] || ''
     results.push({ script: s, status, ms, detail: detail.slice(0, 100) })
