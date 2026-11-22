@@ -286,7 +286,7 @@ const realTask = {
   ],
   acceptance: '产物落在 docs\\108，含 "引号" 与 反斜杠\\路径',
 }
-const realMember = { id: 'm_mwpsyctmcdeda', name: 'maker', agentSessionId: 'sid-real' }
+const realMember = { id: 'm_TESTID', name: 'maker', agentSessionId: 'sid-real' }
 
 // ① no-lead-agent 分支：有指令、ok 仍 false
 {
