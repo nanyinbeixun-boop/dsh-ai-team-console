@@ -2,21 +2,21 @@
 /**
  * verify-capability-domains.mjs —— 6 个真实岗位能力域的行为锁
  *
- * 由来：task_mwq6v2ogel5s9。旧版 CAPABILITY_DOMAINS 是 5 个抽象职能域
+ * 由来：旧版 CAPABILITY_DOMAINS 是 5 个抽象职能域
  * （造规则/干活/验活/查资料/做视觉），「成员/缺口」页认不出团队真实编制，
  * 且 architect 域用 /^standard$/ 当 matchPreset，会把全队认领成同一域。
  *
- * 本脚本锁死四件事，任何一项退化都会红：
- *   1. 六域定义齐：id/label/covers/matchRole/hireWhen/suggest 六字段全在，
- *      id 恰为 pm/ui/frontend/backend/qa/devops，无多无少；
- *   2. 单一命中：6 名真实成员（name+role）每人只命中自己那一个域，
- *      无跨域误判、无漏配；
- *   3. 诱导词反证：role 里的「对接后端接口」「设计业务逻辑」「页面美观」
- *      这些词不得把 frontend/maker/ui 拉进别的域；
- *   4. hireWhen 用户视角：每条都说清「缺这个岗位会怎样」，不许是
- *      「团队里没有…」这种以系统为中心的空洞话。
+ * 本脚本锁死四件事，任何一项退化都会红
+ * 1. 六域定义齐：id/label/covers/matchRole/hireWhen/suggest 六字段全在，
+ * id 恰为 pm/ui/frontend/backend/qa/devops，无多无少；
+ * 2. 单一命中：6 名真实成员（name+role）每人只命中自己那一个域，
+ * 无跨域误判、无漏配；
+ * 3. 诱导词反证：role 里的「对接后端接口」「设计业务逻辑」「页面美观」
+ * 这些词不得把 frontend/maker/ui 拉进别的域；
+ * 4. hireWhen 用户视角：每条都说清「缺这个岗位会怎样」，不许是
+ * 「团队里没有…」这种以系统为中心的空洞话。
  *
- * 补锁（task_mwq73f5h1z40mk）：capability-covered 自检项曾按旧三域 id
+ * 补锁：capability-covered 自检项曾按旧三域 id
  * （architect/maker/auditor）过滤 missing，旧 id 永不出现 → 恒真「假通过」。
  * 第 7 组专治这个：真跑 buildChecks，删掉某岗位后它必须为 false。
  *
@@ -130,8 +130,8 @@ t('建议不用被禁通道（workbuddy/hy4flash-free）',
 /* ── 6. hireWhen 用户视角：说清「缺了会怎样」 ─────────────────── */
 console.log('\n[6] hireWhen 用户视角（缺这个岗位会怎样）')
 for (const d of CAPABILITY_DOMAINS) {
-  // 用户视角 = 讲后果（跑偏/返工/用不上/没人发现/落不了地/部署不上去），
-  // 而不是「团队里没有任何成员能…」这种以系统为中心的老文案。
+ // 用户视角 = 讲后果（跑偏/返工/用不上/没人发现/落不了地/部署不上去），
+ // 而不是「团队里没有任何成员能…」这种以系统为中心的老文案。
   const oldStyle = /团队里没有|^没有能|当前成员只有/.test(d.hireWhen)
   t(`${d.id} hireWhen 讲后果非老文案`, !oldStyle && d.hireWhen.length >= 12, d.hireWhen)
 }
@@ -166,7 +166,7 @@ t('删两岗 → detail 同时点名两个中文岗位',
   Boolean(twoGone) && /运维/.test(twoGone.detail) && /测试/.test(twoGone.detail), twoGone && twoGone.detail)
 
 /* ── 7.5 members-capped：退休成员不占名额（假报红防复发）─────────
- * task_mwqdke7j1k7le：旧版用 members.length 比较上限，11 条记录（在编6+退休5）
+ *：旧版用 members.length 比较上限，11 条记录（在编6+退休5）
  * 会被误判超上限 8 → 假报红。这里真跑 buildChecks 验证按在编人数判定。
  */
 console.log('\n[7.5] members-capped 自检项（退休不占名额，按在编人数判）')
@@ -207,7 +207,7 @@ t('op=hire 名额已满提示已去「重建团队」、指向「成员页调上
   /到「成员」页把团队人数上限调高/.test(idxSrc) && !/通常要重建团队/.test(idxSrc))
 
 /* ── 8. retired/failed 成员不算承接人（假齐备防复发） ────────────
- * task_mwq7llvab9h4a：analyseGaps 曾不过滤 status，唯一承接人退休/失败时
+ *：analyseGaps 曾不过滤 status，唯一承接人退休/失败时
  * 缺口页仍显示齐备、capability-covered 也判通过。这里真跑 analyseGaps 验证。
  */
 console.log('\n[8] retired/failed 不算承接人（假齐备防复发）')
