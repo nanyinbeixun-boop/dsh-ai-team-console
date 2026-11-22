@@ -1,0 +1,258 @@
+{
+ "__note": "真实 handoff 快照（已脱敏）：保留结构与技术细节供 distill 回归测试用，业务标识已替换为占位符",
+ "count": 63,
+ "items": [
+  {
+   "slot": "handoff/distill-quality",
+   "value": "task_mwr6312b639gf9 蒸馏召回26.7%→100%。只改evolve.mjs的distill()（未碰parseSkillSummary/listSkills/frontend-dev的humanItems/tier字段，已grep确认保留）。修复：切分改Markdown结构优先(##节定sectionKey→'- '列表项天然边界→仅>300字按句号二次切；无##结构走旧200字兼容路径)；分桶节标题优先(SECTION_BUCKET:最容易错/踩坑→pitfalls)+内容RULES兜底，pitfalls需过isActionable(动作词/因果词)否则降none；排除##/#/>标题行与\"这个skill管什么\"purpose节。坑：clean会剥^[^：:]{0,12}[：:]前缀致\"注意：\"丢失，测试锚点用句中独特词别用开头；中文>300字要靠repeat补足别凭视觉估(150字看着像200+)。新建verify-distill-quality.mjs 13断言(固定fixture 8短坑+7长坑≥300字、召回/精确/长条/落桶四指标、阴性纯文本、动作性噪音隔离)。npm test 13/13、node--check、变异3/3报红。端到端新旧对比：旧pitfalls=9含purpose句/标题噪音真坑召回0/15，新pitfalls=15全真坑召回15/15。hash evolve A74FB59C→63492306(502→543行)。备份 D:\\软件\\DSH\\备份\\_distill-20261122-093814。导出distill供测试(末尾export不改行为)。"
+  },
+  {
+   "slot": "handoff/fullpreview-task_mwr5w56n3zbo5y",
+   "value": "fullPreview 放开截断完成(task_mwr5w56n3zbo5y)。选方案A+200KB保护：evolve.mjs 导出 FULL_PREVIEW_MAX=200*1024，fullPreview=超限时slice(0,MAX)否则完整content，并新增 fullPreviewTruncated 布尔字段；preview仍 previewOf(content,300) 不动。verify-skills 加[8]段6断言(5000字md覆盖率≥98%/末尾标记/TRUNCATED=false/preview阴性对照/FULL_PREVIEW_MAX)。变异检验：改回 previewOf(content,1500)→59/2报红(覆盖率1501+末尾标记丢失)→恢复61/0绿。实测真实 team-l9lagp-onboarding.md：SRC=4229 FULLPREVIEW=4229 覆盖率100% TRUNCATED=false 末尾标记在 preview仍301。npm test 11/11、node --check全绿。hash evolve 50C52AF8→A07DD768、verify-skills 3EC5C0EC→15187F84。备份_tmp各文件.bak-task_mwr5w56n3zbo5y。"
+  },
+  {
+   "slot": "handoff/skill-brief-injection",
+   "value": "task_mwr5s4v72yf766 P0修复：批准技能此前对AI零影响（skill.content全库grep 0引用）。根因导线断在S4→state、buildTaskBrief不读state、调用点不传opts。修复 pipeline.mjs：①S4 用 ctx.state.skill||await Reg.findSkillFor()（关键发现：主循环L1390把每步data合并进ctx.state，S1的data:{skill:pf.skill}已成ctx.state.skill，无需新增preflightSkill字段/无重复IO；从S4起跑回落findSkillFor）→写skillText/skillPath；②buildTaskBrief在firstPiece后追加三段(硬约束/知识文件/技能全文，技能不截断只标全文N字)；③L971调用点传constraintsText/knowledgeFiles/skillText。buildTaskBrief本就在文件末尾export块导出(别重复加export关键字否则duplicate export)。新建 verify-skill-injection.mjs 16断言真跑buildTaskBrief(标记/约束/知识/阴性/9000字不截断/接线)。npm test 12/12、node--check全过、变异3/3报红(补强调用点精确匹配assert)。端到端用临时目录真写skill→findSkillFor真读→brief注入段前200字已贴。hash pipeline 3F4DB5A8→1E80F782(1444→1470行)。备份 D:\\软件\\DSH\\备份\\_skillinject-20261122-092938。"
+  },
+  {
+   "slot": "handoff/skill-summary-task_mwr524wm1ijwb",
+   "value": "技能卡结构化摘要完成(task_mwr524wm1ijwb)。evolve.mjs 新增导出 parseSkillSummary(md)：按 `## ` 切节(记录 headAt/bodyAt，正文止于下一标题起点)，purpose取「管什么」节首个非列表非空行，scene从 > 场景行解析，generatedAt/handoffRounds从 > 来源行，sections排除purpose与「启用方式」节、count实数/items前3每条截80字，无##节返回null。listSkills 每项追加 summary + fullPreview(1500字)。坑：verify-skills 原断言 preview.length<=300 与 previewOf「300+省略号=301」自相矛盾，我扩展测试md后才暴露，已改<=301。前端 renderSkillCard(it,kind) 三段式+details展开全文，summary缺失退化为预览。实测 op=skills pending 项 summary.purpose/scene.id=team-l9lagp/4 sections/fullPreview1501全对；npm test 11/11、verify-skills 55/0、node --check全绿。备份_tmp各文件.bak-task_mwr524wm1ijwb。"
+  },
+  {
+   "slot": "handoff/round-done",
+   "value": "task_mwr4eftw3u711n 标记本轮完成完成。服务端 index.js 新增 op=round-done(POST scenarioId)：Reg.setState(id,'closing')成功再 setState(id,'done')，第一步失败报step:closing、第二步失败报step:done+state:closing，不绕过状态机改rounds。前端 client.js：技能页加「轮次统计已完成/运行中不计入」说明、任务页rounds旁ⓘ悬停、「标记本轮完成」按钮(running/awaiting可用 idle禁用「先跑流水线开出会话」)、成功显示第N轮失败显示卡在哪步。verify-skills加[6]组(19→41断言)含真跑两步状态机(running→closing→done rounds0→1、done→done拒绝、running直接→done拒绝)。npm test 11/11、node--check全过、变异3/3报红(补强了\"index.js零rounds赋值\"静态断言堵住绕过写入)。hash index 7A8D1693→CCE4CB56、client 6DF7A561→C55F5B67。备份 D:\\软件\\DSH\\备份\\_rounddone-20261122-085105。⚠️重要未决：实测对team-l9lagp走两步写入后立刻读到done/rounds=1，但几分钟后注册表被回写覆盖回running/rounds=0(mtime停在08:23:35早于实测)——疑似有进程持旧快照周期性重写_registry.json，手动标记的状态可能被运行时回写冲掉，已报Lead定夺。不阻塞代码正确性(op逻辑对)。"
+  },
+  {
+   "slot": "handoff/skills-threshold-ui-task_mwr49ugg3c0988",
+   "value": "技能页三修完成(task_mwr49ugg3c0988)。契约：op=evolve-config GET{ok,distillMinRounds,path,note,range} POST{distillMinRounds} 1-10；前端 TabScenario load() 并行拉它，读不到回落3，替换原硬编码<3/>=3/3-；TabSkills 加门槛调节UI+空状态三步指引(列工作项rounds/还差N轮+去任务页按钮 p.setTab('tasks'))。坑：mock handler 真调 op 时 apply(ctx) 已走 Host 适配层，ctx 要用 `get(n){if(n==='webServer')return{register}}` + effect:(f)=>f()，不是直接 ctx.webServer 属性。实调：门槛3→1→3闭环200、同一场景门槛1 vs 3 的 distill reason 分别说\"需满1轮\"/\"需满3轮\"证明门槛生效；但任务指定的 jingjie-2 场景已被清理（现仅3个team-*场景rounds全0），due:true生成草稿无法复现，已报Lead。npm test=node scripts/verify-all.mjs 11/11、verify-skills我加了[5]前端断言段30/0。备份_tmp\\client.js.bak-task_mwr49ugg3c0988。"
+  },
+  {
+   "slot": "handoff/verify-model-tab-fix-task_mwr1opta1y45b1",
+   "value": "修 verify-model-tab 4条失败(task_mwr1opta1y45b1)：任务判定「3代码真问题+1测试过严」有误，真根因是测试脚本用 `/* ── P20` 注释当 TabModels 结束锚点，该注释被成员删除→indexOf=-1→`cli.slice(s,-1)` 扫整个后半文件，把函数体外文案表和ONBOARD_STEPS的atc-grid误判。修法：只改测试，用花括号配对 braceEnd() 算函数真正结束，client.js零改动（hash前后一致4E971E…）。坑：withKey(label,k) 会在表值无括号时自动补回（k），所以任务说的「删表值括号去英文键」根本无效，且 verify-chat-feedback L197 锁表值必须带括号——已报Lead。变异检验通过：TabModels内塞atc-grid→51/1报红→移除52/0绿。六套全绿：model-tab52/selfcheck8/chat-feedback195/routes567/p16-92/capability69。"
+  },
+  {
+   "slot": "handoff/preset-management",
+   "value": "task_mwr1h15t129qk 会话预设管理完成。新增 lib/orchestrator/presetManager.mjs（纯函数+IO）：js-yaml4.3.2(profile node_modules已有，用createRequire从profile目录require) + sanitizeJsTags把!!js包成字符串再load；parsePresets提agent-preset实例(instanceId/id/name/description/order/pluginCount/source/enabled)，loadAllPresets合并profile(4:novel-forge/redteam/unrestricted/team)+builtin(standard/minimal/ptc)=7个；findBlockBounds按4空格'- id:'定位块，setDisabledInText/setOrderInText只改块内实例级disabled(6空格)与config.order(8空格)行，editPreset备份.bak-preset-<ts>+回读verifyWritten+拒绝builtin。index.js新增op=presets/toggle/order(路径env可覆盖，返回needsRestart)。verify-presets.mjs 28断言全绿(临时副本测toggle/order开关恢复+只改team块内行零外溢+builtin拒绝+order校验；真实cordis hash零变化)。selfcheck8。真实cordis.patch.yml零副作用(CB73E9FF前后一致)。index hash 5C1B40BC→F2E354A3。备份 D:\\软件\\DSH\\备份\\_presets-20261122-072903。坑：redteam的disabled在id与name之间需setDisabled能加/改该行；!!js必须占位否则js-yaml抛unknown tag崩；变异判定要把脚本crash算red否则假阴性。需重启DSH生效。"
+  },
+  {
+   "slot": "handoff/presets-unblock-task_mwr1h7ud328co",
+   "value": "会话预设页签前置已解除：maker 完成 preset-toggle/preset-order 后，selfcheck 8/8 全绿（op 对表检查通过）；verify-presets 28/0 全绿。注意 verify-model-tab 现 48/4 既存失败（3条banned词provider-disabled/cap/route-disabled + 1条atc-grid），根因是恢复后的脚本 banned 表与中文化标签表冲突，代码在我任务开始前备份里就有，非会话预设改动引入——已报 Lead，职责外未碰。verify脚本由 Lead 今早移走后已恢复9个并加 .gitignore（本地可跑不进仓库）。"
+  },
+  {
+   "slot": "handoff/package-metadata",
+   "value": "task_mwqfzour11dnn 补package.json元数据完成。实测宿主版本(D:\\软件\\DSH\\DSH Desktop\\resources\\app\\node_modules\\@deepseek-ai)：cordis=4.0.5、dsh-client-ui-slots=0.2.1-rc.2、schemastery=3.18.5、node v24.17.0。package.json 版本 0.6.0→0.7.0，新增 engines{node:>=20}、repository{type:git,url:占位<LOCAL_REPO_PATH_OR_URL>}、scripts{verify:node scripts/selfcheck.mjs}、dependencies{@deepseek-ai/schemastery:>=3.18.5}、peerDependencies{cordis:>=4.0.5, dsh-client-ui-slots:>=0.2.1-rc.2}、devDependencies{cordis:>=4.0.5 手册强制两处都在}。dsh/exports/files/keywords/license 原样未动（已核对）。README 加 0.7.0 版本行+「依赖与宿主版本」实测表。JSON.parse 合法、selfcheck 8/8。hash package F1A75B1F→B1F6CFD5。备份 D:\\软件\\DSH\\备份\\_pkgver-20261121-212724。坑：node -e 里带中文/双引号经PowerShell会被吞，字段核对用node读文件比JSON.stringify更稳。"
+  },
+  {
+   "slot": "handoff/skills-metadata",
+   "value": "task_mwqf7vsj3beu9y op=skills补元数据完成。evolve.mjs：import加stat；新增粗糙字数函数 roughChars(md)（去代码块+markdown标记+空白后length，返回number）与 previewOf(md,limit=300)（压空白+截断+…）；listSkills 用共用 enrich(dir,bucket,kind)，每项在file/path之上加 bytes(st.size)/chars/preview/mtime(st.mtimeMs)，单文件读失败 errors.push({kind,file,path,error}) 跳过不拖垮接口，active/pending两目录都走enrich，返回多一个 errors 数组。file/path保留不变。新建 verify-skills.mjs 19断言（临时userDataRoot+动态import+假md：bytes>0/chars>0/preview前缀≤300/file/path在/mtime正/errors数组；失败隔离用静态断言锁errors.push不throw，因Windows无symlink权限）。七脚本全绿 selfcheck8/skills19/evolve-config24/routes567/chat-feedback195/p16 92/capability69；变异3/3报红。hash evolve 58357CAE→46B0A3C5(diff L14-361)。备份 D:\\软件\\DSH\\备份\\_skillmeta-20261121-211208。坑：roughChars返回number不是字符串，断言别拿字符串比；测试脚本要防元数据缺失时 a.preview undefined 崩溃(用typeof防御)否则变异被判假阴性。"
+  },
+  {
+   "slot": "handoff/evolve-config-threshold",
+   "value": "task_mwqf09kbh4lag 蒸馏门槛可配置完成。evolve.mjs 新增 CONFIG_FILE=<USER_DATA>/ai-team-console/evolve-config.json、DEFAULT_DISTILL_MIN_ROUNDS=3、DISTILL_ROUNDS_RANGE{1,10}、validateMinRounds(读写共用，整数1-10)、readEvolveConfig(缺/坏/非法→默认3不抛)、writeEvolveConfig；maybeDistill 从硬编码3改为读配置，reason带数字+「可在技能页把门槛调低」。index.js 新增 op=evolve-config GET读/POST写(非法400)。verify-evolve-config.mjs 24断言：用临时 DSH_USER_DATA_ROOT+动态import隔离真实配置，测默认3/写1读1/0和11拒绝/rounds=1门槛3时reason带需满3、门槛1时不再被轮数挡且due:true(用真实团队handoff跑通)。六脚本全绿 selfcheck8/evolve-config24/routes567/chat-feedback195/p16 92/capability69；变异3/3报红。真实 evolve-config.json 未创建(默认3)。hash evolve 1F6F887D→58357CAE(diff L16-260)、index 7085F15A→934A3E3F(diff L758-766)。备份 D:\\软件\\DSH\\备份\\_evolvecfg-20261121-210907。坑：Reg.paths.userData在import时固定，测试要设env在动态import之前；due:true需handoff素材，用临时注册表+真实团队teamId跑通。"
+  },
+  {
+   "slot": "handoff/preset-team-mode",
+   "value": "task_mwqex75c24gab 新增「团队模式」agent preset：在 D:\\软件\\DSH\\appdata\\harness\\profiles\\web\\cordis.patch.yml 末尾追加一个 - insert 块（id:preset-team，name:@deepseek-ai/dsh-agent-preset，config id:team/name:团队模式/order:2），plugins 原样复制 standard.patch.yml 全量22项（用node读文件逐行拼，含!!js条件行/planning/compaction/delegation三group/plan-mode超长section），末尾追加2条团队插件：agent-team(@deepseek-ai/dsh-experimental-agent-team 核心,maxMembers8等)+tool-agent-team(@deepseek-ai/dsh-experimental-tool-agent-team,freshProvider:spawn/forkProvider:fork)。UI插件不在preset重复挂（官方agent-team-profile在profile层已提供slot）。坑：!!js自定义tag用js-yamlload前先replace成占位才能校验；Get-Content读中文yaml行数与read工具不一致(2512 vs 2947)，用node字节级。校验：js-yaml语法OK、standard22项逐条JSON深比对一致、现有novel-forge/redteam/unrestricted未动、安装目录standard.patch.yml hash未变。备份 D:\\软件\\DSH\\备份\\_preset-team-20261121-210741。需重启DSH Web才生效，未擅自重启。"
+  },
+  {
+   "slot": "handoff/teams-to-scenarios-sync",
+   "value": "task_mwqeqn7h1a5f7 会话团队同步成工作项完成。registry.mjs 新增 normalizeSessionId(去session-前缀纯UUID，读写共用)、scenarioIdForTeam(team_mwpsxeul9lagp→team-l9lagp，合规id)、reconcileTeams(teams,scenarios)纯函数(补建缺teamId的scenario/反向修正lead不一致记repaired/幂等)、replaceScenarios(写盘)；index.js op=scenarios 惰性对账(sidecar不可达退回原数据不阻断)+op=sync-teams主动触发，changed才写盘，返回 added/repaired/changed。真实数据已同步写盘：_registry.json 1→2工作项(jingjie-2 lead从5871579b修正为89cfacec，补建team-l9lagp[当前团队])，幂等复验 changed=false。新增 verify-team-sync.mjs 24断言；七脚本全绿 selfcheck8/team-sync24/routes567/chat-feedback195/p16 92/capability69/dir-list39；变异3/3报红。hash registry 24CC1FCD→D8EF7A59(diff L141-219)、index BF054A87→7085F15A(diff L577-603)。备份 D:\\软件\\DSH\\备份\\_teamsync-20261121-210303。坑：op=scenarios 改动需重启Web才HTTP生效；测试脚本要防\"补建项undefined\"崩溃(用可选链)否则变异时被判假阴性。"
+  },
+  {
+   "slot": "handoff/skills-ui-task_mwqekgd51kbcn",
+   "value": "技能前端完成(task_mwqekgd51kbcn)。契约：op=skills 返回{root,pendingRoot,active:[{file,path}],pending:[{file,path}]}——注意 active/pending 只有 file/path，无内容/字数，来源工作项从文件名 {id}-onboarding.md 解析，字数无字段时显示「字数未标注」，pending预览仅当 it.content 存在才取前300字（服务端未给就不造假）。op=distill 返回{due:false,rounds,reason}/{due:true,generated}——due:false 必须显示 reason 原文。op=skill-approve body {scenarioId}。场景 id 在 op=scenarios（当前 jingjie-2 rounds=1）。新页签 id=skills 加入 TABS(6个)，旧 alias 不变。验证 op 用 apply(mockCtx)+Readable Buffer 流+socket.remoteAddress=127.0.0.1 绕401。备份_tmp\\client.js.bak-task_mwqekgd51kbcn。五套+distill实调全绿。"
+  },
+  {
+   "slot": "handoff/roots-source-tag",
+   "value": "task_mwqefrzp17ybw roots加source标记：detect.mjs 三类根带 source（default内置3个/drive盘符/user自定义），新增 strongerSource()（user>default>drive）。关键改动：readWorkspaceRoots 从「有custom就用custom否则默认」改为**并集**（默认3个+用户自定义都在，各带source），suggestWorkspaces 用 Map 去重时同路径保留更强source且保序（不改变首次出现位置）；driveRoots 带 source:'drive'。前端据此只对 source==='user' 显示删除按钮。verify-dir-list 加10条source断言（29→39，含临时json写自定义根后验证source=user、同路径不重复、user>default冲突、并集保留默认），测试数据finally清理未污染真实配置。六脚本全绿 selfcheck8/dir-list39/routes567/chat-feedback195/p16 92/capability69；变异3/3报红。hash detect CE90B1EF→15798E9C（367→375行，diff L301-388）。备份 D:\\软件\\DSH\\备份\\_rootsrc-20261121-210002。坑：变异脚本行尾// MUT会吞掉同行}catch导致语法崩，要用\"改值\"而非\"加注释\"做干净变异。"
+  },
+  {
+   "slot": "handoff/dir-list-empty-path",
+   "value": "task_mwqe6wxe1l5g8 修 dir-list 空路径：index.js op=dir-list 在 raw 为空/undefined/纯空格时，返回 {ok:true,path:'',parent:null,dirs:Detect.driveRoots().map(d=>({name:d.path,path:d.path}))}，不再报「路径无效」；非空但无效路径仍走原错误处理（目录不存在/路径无效400/fail）。盘符根 parent=null 不变。verify-dir-list 加4条空path断言 + 1条 index.js 接线静态锁（防\"测试模拟函数绿但index实现坏\"的盲点），24→29。六脚本全绿 selfcheck8/dir-list29/routes567/chat-feedback195/p16 92/capability69；变异2/2报红（driveRoots改空/空path分支false）。hash index 42D5B096F473A507EA9F3683687EC06CAB48AB9FEB7AF68BFF6ACE77A942819C→BF054A8777E5CAD9CAA34E9FACF121E0D8B0CB8F026E3D0C79F66B8D52238D0A（1385→1389行，diff 新L745-752）。备份 D:\\软件\\DSH\\备份\\_dirempty-20261121-203658。坑：测试脚本用模拟函数时，必须另加静态断言锁真实实现，否则改坏index也不会红。"
+  },
+  {
+   "slot": "handoff/dir-list-workspace-roots",
+   "value": "task_mwqdyrti1euso 工作区浏览+根目录可扩展完成。detect.mjs：新增 normalizeDir/workspaceRootsFile/readWorkspaceRoots/driveRoots，suggestWorkspaces(opts) 从「读 <userDataRoot>/_docs/workspace-roots.json（缺则默认三个）+追加有权限盘符根、规范化去重」，返回结构 {path,label,children} 不变。index.js：新增 op=dir-list（path query/body、只列目录跟随junction、按名排序、parent盘符根为null、500限、错误可读）、op=workspace-add-root/remove-root（读写配置json、去重、校验存在），workspace-suggest 传 userDataRoot()。新增 scripts/verify-dir-list.mjs 24断言（真跑纯函数+真实文件系统+op接线静态）。六脚本全绿 selfcheck8/routes567/chat-feedback195/p16 92/capability69/dir-list24。hash detect 50ADE072→CE90B1EF(299→367行)、index B3924A6E→42D5B096(1335→1385行)。备份 D:\\软件\\DSH\\备份\\_dirlist-20261121-203038。坑：HTTP实测返回unknown op因服务加载盘上旧代码，服务端改动需重启Web才生效，已用真实FS+静态接线等价验证。"
+  },
+  {
+   "slot": "handoff/dirbrowser-task_mwqdysp43hz90",
+   "value": "工作区目录浏览器完成(task_mwqdysp43hz90)。依赖服务端3个op（另一任务做）：dir-list 用 GET ?op=dir-list&path= 返回{ok,path,parent,dirs:[{name,path}],error}；workspace-add-root/remove-root 用 mut.send POST body {path}，成功后 loadRoots() 重拉 workspace-suggest。我这边按任务契约写好，服务端op落地前UI点击会显示error原文（不静默）。主题已被其他成员改成蓝+暗色双主题，我按当前 var(--raised)/var(--shadow-hover)/atc-rise 写，跟随现状。键盘监听用 useEffect 挂 document（browsing/dirHi/dirList 依赖），Esc/Enter/↑↓。备份_tmp\\client.js.bak-task_mwqdysp43hz90。五套自检+node --check全绿。"
+  },
+  {
+   "slot": "handoff/teamcap-task_mwqdkf153794b",
+   "value": "团队上限可调入口完成(task_mwqdkf153794b)。要点：服务端已有 op=team-cap（POST {teamId,maxMembers} 1-64，内部 PATCH /api/teams/:id），前端别重写直接 mut.send('team-cap',...)；上限值在快照路径 snap.team.teams[].maxMembers（按 teamId 找，默认8），在编=members.length。成功回调 p.onSnapshot(true) 刷新；失败 error 在 mut.result.data.error。验证 op 闭环的巧办法：Node import lib/index.js→apply(mockCtx 捕获 webServer.register 的 handler)→构造 mock req(Readable Buffer 流 + url=...?op=team-cap + socket.remoteAddress='127.0.0.1' 过 sameOrigin)→调 handler，绕开 43129 的 token 401。备份_tmp\\client.js.bak-task_mwqdkf153794b。五套自检+闭环实测全绿，上限已恢复8。"
+  },
+  {
+   "slot": "handoff/members-capped-active-count",
+   "value": "task_mwqdke7j1k7le 修 members-capped 假报红：lib/index.js buildChecks 里 pass 从 members.length 改为 activeMembers.filter(status!==retired&&!==failed).length <= cappedMax；detail 改「在编N人·上限M（另有K人已退休）」，超上限给「超上限N人，到成员页调整上限或退休成员」；op=hire L680 过时「通常要重建团队」改「成员页调上限即时生效不用重建」。防复发：verify-capability-domains 加[7.5]组8断言（真跑buildChecks：6在编+5退休=11→pass、9在编→fail+可执行提示），61→69。五脚本全绿 selfcheck8/routes567/chat-feedback195/p16 92/capability69；变异3/3报红。改前hash 6FEC32DF 改后 B3924A6E（1329→1335行，diff 旧441-445→新441-452、旧680→新687）。备份 D:\\软件\\DSH\\备份\\_capped-20261121-201939。"
+  },
+  {
+   "slot": "handoff/advsettings-task_mwqcgh0g14bks",
+   "value": "模型页高级设置整理完成(task_mwqcgh0g14bks)。坑：verify-model-tab 用字面 `}, '设上限')` 的 indexOf 锁「设上限按钮必须在 高级设置▸ 之后」，所以 renderProvCard 函数定义不能提到 TabModels 开头（会让设上限字面出现在前面导致假失败）；解法是把函数定义放进高级设置子节点处的 IIFE 里 `(function(){ function renderProvCard(){} return [...]; })()`，既语法合法又满足字符串位置断言。分组依据 cfg.disabledProviders（整条通道停用），非 g.allowed（模型级倍率）。备份_tmp\\client.js.bak-task_mwqcgh0g14bks。五套自检+node --check全绿。"
+  },
+  {
+   "slot": "handoff/warm-theme-task_mwq9ky3u1mf8p2",
+   "value": "风格B暖纸晨光浅色主题落地完成(task_mwq9ky3u1mf8p2)。权威稿 _docs\\ui-redesign\\preview-B-warm-light.html，色板逐值照搬。关键做法：JS 里有 200+ 行 var(--accent/--ok/--danger/--warn/--border/--radius/--text-dim) 引用，没逐个改，而是在新 .atc-root 里保留这些旧别名指向新值（--panel:var(--base) --radius:var(--r)），避免动业务逻辑。3组 keyframes 加 atc- 前缀避免冲突；动效全包 prefers-reduced-motion。✓/✗ 独立符号span换 inline SVG(atcIcon函数)，但带文字的语义文案(如✓已刷新)按红线保留。备份_tmp\\client.js.bak-task_mwq9ky3u1mf8p2。六套自检全绿，卡片/背景对比度1.52:1。"
+  },
+  {
+   "slot": "handoff/ui-redesign-task_mwq99qvcmexp2",
+   "value": "面板视觉重设计完成。真病因=卡片#23262b vs 背景#1a1c20仅1.12:1(层次不可见)+全灰调+动效全0+无网格；正文13.94:1达标勿动。三套色板卡片vs背景实测A亮1.41/B暗1.42/C暖亮1.52，全部≥1.35。现有样式在 lib/client.js L79-121，动效grep确认0命中、grid仅L118一处(Lead快照说0处略旧)。产物在 _docs/ui-redesign/：设计系统规格.md + preview-A-vivid-dark.html(方案B) + preview-B-warm-light.html(方案C)，两稿DOM结构一致仅配色不同。用户要先看图再定，截图由Lead做。图标全用inline SVG(渲染环境无emoji字体)。未改任何代码/文案/信息架构。"
+  },
+  {
+   "slot": "handoff/visual-unify-task_mwq817sw3c3v85",
+   "value": "视觉统一完成(task_mwq817sw3c3v85)，只改 client.js 样式零改布局/文案/逻辑。坑：批量把 gap:4 改成 gap:4px 会让 JS style 对象语法报错——CSS 字符串里写 gap:4px，JS style 对象必须写 gap:'4px'，二者要分开处理。另变量定义块别参与颜色 replace，否则 --warn 变 var(--warn) 循环引用。已在 .atc-root 建全套 CSS 变量，失败态黄改 --danger、警告黄留 --warn、双绿合 --ok。备份 _tmp\\client.js.bak-task_mwq817sw3c3v85，回滚直接覆盖。五套自检全绿。"
+  },
+  {
+   "slot": "handoff/path-leak-fix-task_mwq7xz2z2dg4bm",
+   "value": "修面板路径泄漏(task_mwq7xz2z2dg4bm)完成。坑：client.js 里 `var mut = useMutate()` 有 10 处，临时注入验证 banned 表时必须用 `function TabModels(p) {`→`/* ── P20` 边界取段，否则注入到第 1 处不报红（我第一次就误判）。banned 表已补 D:\\、/route-config.json、relay、127.0.0.1、configSource.file/source，且扫整个 TabModels 段含高级设置。新纯函数 configSourceTextOf 只说中文状态不渲染路径，已导出 __vm。备份在 _tmp\\client.js.bak-task_mwq7xz2z2dg4bm。真机 GUI 需 token(401)，改用 VM 真跑 client.js 捕获渲染文案验证。四套自检全绿。"
+  },
+  {
+   "slot": "handoff/verify-after-restart-stale-cap-task_mwq7xzpd2f48w6",
+   "value": "任务完成：修 verify-after-restart 过期断言(原自报FAIL4/5)。根因=硬断言 workbuddy cap===0，但用户已授权 workbuddy cap=0.13 付费档(account有积分)。修法(scripts/verify-after-restart.mjs)：顶部 import {gateRoute,selectRoute}；checkRouteConfig 换成四条安全不变式——①-a maxMultiplier数字且≤0.13；①-b disabledProviders每家cap=0；①-c 每家实调gateRoute必须blockedBy=provider-disabled(核心真防线，非恒真)；①-d 五域固定常量code/audit/probe/vision/quick用selectRoute实调不落禁用provider。域列表来源必须是固定常量——route-config响应无domains字段。关键洞见：cap=0也拦不住被移出名单的provider(免费provider倍率推断0不触发cap)，所以①-c名单硬拦才是真防线。验证：verify-after-restart 5/5 exit0(原FAIL4/5)；六脚本 selfcheck8/domains61/routes567/chat195/p16 92/after-restart5 全绿。变异检验：从config移除raccoon→gateRoute blockedBy从provider-disabled变null/allowed=true→断言报红(非恒真)。回滚：Copy-Item scripts\\verify-after-restart.mjs.bak-task_mwq7xzpd2f48w6 scripts\\verify-after-restart.mjs -Force。当前脚本hash=669DE8EE…86AA7。"
+  },
+  {
+   "slot": "handoff/retired-false-complete-task_mwq7llvab9h4a",
+   "value": "任务完成：修「退休/失败成员仍算岗位承接人」假齐备。根因=analyseGaps 不过滤 status，唯一承接人 retired/failed 仍被算 covered，capability-covered 假通过。修法(index.js analyseGaps L214)：入口加 active=members.filter(m=>m.status!=='retired'&&m.status!=='failed')，owners 改用 active；不过滤 idle/running(idle仍有效承接)。注意 teamHealth.activeMembers 只过滤 retired 不过滤 failed，别复用。断言(verify-capability-domains.mjs 第8组+10条)：唯一承接人 retired/failed→missing且coveredCount减一、retired+active同域只统计active、capability-covered随retired变false、全retired→coveredCount=0。对抗验证：owners 改回未过滤→报红8项(含capability-covered假通过)；edit 精准改回 hash 复原 6FEC32DF…AE256、61全绿。五脚本 selfcheck8/domains61/routes567/chat195/p16 92 全绿。回滚：Copy-Item lib\\index.js.bak-task_mwq7llvab9h4a lib\\index.js -Force。当前 hash=6FEC32DF…AE256。"
+  },
+  {
+   "slot": "handoff/false-positive-capability-covered-task_mwq73f5h1z40mk",
+   "value": "任务完成：修 capability-covered 假通过。根因=pass 用旧三域 id 过滤 missing，旧 id 永不出现→恒 true。修法(index.js L452-458)：pass 改 gaps.missing.length===0；label 改「六大岗位齐全(产品/UI/前端/后端/测试/运维)」；detail 缺岗点名中文 label、全齐说「六个岗位都有承接」；并 export buildChecks。断言(verify-capability-domains.mjs 第7组)：真跑 buildChecks，逐个删 6 岗位必为 false + 删两岗 detail 同时点名。坑：buildChecks 返回 {items,passed,total} 不是数组；fixture 里测试岗成员 name 是 auditor 不是 qa，别写错。对抗验证：pass 改回 true→报红6项；edit 精准改回后 hash 复原、51全绿。纪律：这次全程用 edit 不用 Copy-Item 覆盖源文件(上轮误用.bak冲掉改动的教训)。五脚本：selfcheck8/domains51/routes567/chat195/p16 92 全绿。回滚：Copy-Item lib\\index.js.bak-task_mwq73f5h1z40mk lib\\index.js -Force。当前 index.js hash=682DB9FD…78ED4A。"
+  },
+  {
+   "slot": "handoff/capability-domains-task_mwq6v2ogel5s9",
+   "value": "任务完成：CAPABILITY_DOMAINS 由 5 抽象域改 6 真实岗位(pm/ui/frontend/backend/qa/devops)，落在 ai-team-console/lib/index.js L50-107，并 export {CAPABILITY_DOMAINS,analyseGaps}(L109)，新增 scripts/verify-capability-domains.mjs(35断言全绿)。坑1：全队 agentPreset 都是 standard，matchPreset 必须一律 null，否则 /^standard$/ 一把梭全队。坑2：role 含诱导词——frontend「对接后端接口」、maker「设计业务逻辑」、ui「页面美观」，正则别用裸「接口/设计/页面」。对抗验证纪律：改坏正则报红3项、从「改动版快照」恢复才全绿；千万别用原始 .bak 做恢复点，会把新改动一起冲掉。全套：selfcheck8/routes567/chat195/p16 92/domains35 全绿。回滚命令：Copy-Item lib\\index.js.bak-task_mwq6v2ogel5s9 lib\\index.js -Force（回到原始版）。"
+  },
+  {
+   "slot": "handoff/model-tab-clean-impl-detail",
+   "value": "task_mwq6fjuwaw37ap 模型页再清两处实现细节文案：①删「免费池（实测可用N项）已并入下方列表，价格列显示免费」整句；②层级说明去 relay/IP，改白话「这些通道都来自同一个模型插件，背后接不同的上游服务，不是N家独立厂商」（保留纠错概念、删 relayHost 变量与 pluginName）；③全局上限括号里「显式指定看图/生成类不受此限」改「你手动点名时仍可用」。坑：verify-chat-feedback 原锁「插件（relay」「relayEndpoint」旧文案，同步改为锁白话句+断言不含relay/IP；注释里「厂商」字样又被 L190 抓，改「不是N家独立」；verify-model-tab「免费池说明并入主列表」断言改「无已并入解释句」。五脚本全绿 selfcheck8/routes567/chat-feedback195/p16 92/model-tab42；变异3/3报红。备份 D:\\软件\\DSH\\备份\\_modelclean-20261121-165943。"
+  },
+  {
+   "slot": "handoff/model-tab-refactor",
+   "value": "task_mwq67zvd9hcl6v 模型页重构完成：client.js TabModels 整体重写——顶部一句话摘要(现在能用N条/最便宜X免费/当前指挥模型)、主列表只列okRows一行四列(通道名/模型名/价格/用途)、已停用详情默认折叠(标题「已停用N条▸点开看原因」)、免费池合并进主列表(无独立atc-grid)、cap与启停+层级说明+全局上限+指挥模型收进「高级设置▸」details。新增白话纯函数 priceTextOf/purposeOf/cleanReasonOf/reasonOf/channelNameOf 并导出到__vm。坑：verify-routes L817/821 与 verify-chat-feedback L194-196 锁旧文案(设cap/指挥（Lead）模型/厂商)，改为语义断言；注释里「不是N家厂商」被 chat-feedback L190 抓，改「独立厂商」。新锁 scripts/verify-model-tab.mjs 42断言(静态+纯函数真跑)。五脚本全绿 selfcheck8/routes567/chat-feedback195/p16 92/model-tab42；变异3/3报红。备份 D:\\软件\\DSH\\备份\\_modeltab-20261121-165401。"
+  },
+  {
+   "slot": "handoff/p2-generation-intent-fix",
+   "value": "Lead 独立验证三问题全修：①P0 视觉通道被 maxMultiplier=0.13 间接写死——新增 isGenerationIntent(opts)（vision域/allowVision=true/显式视觉route），gateRoute(route,config,opts) 命中时跳过 multiplier-unknown 与 cap 检查，标 exemptedBy='generation-intent'，但 disabledProviders/disabledRoutes 硬禁用仍生效（成本上限只省钱不封功能）。调用链：selectRoute vision域传genOpts、resolveChatRoute 的 gateOf 对 explicit 视觉传 genOpts。②isPrimaryModel 传对象曾false=参数格式问题（正确调用传字符串 route.model），已加对象入参兼容。③vision域 paid 从 workbuddy/deepseek-v4.1-flash 改 modlens-workbuddy/mimo-v2.6-pro 专精；新增 isVisionSpecialist()、isVisionRoute 认 modlens-* 前缀。verify-routes 555→567（+12 P2断言，修8条连锁）。四脚本全绿 selfcheck8/routes567/chat-feedback195/p16 92；变异3/3报红。真实盘配置验证：x0.69/x0.51/未知倍率视觉通道普通选挡、显式视觉放行，vision域选 modlens专精。备份 D:\\软件\\DSH\\备份\\_p2fix-20261121-152618。"
+  },
+  {
+   "slot": "handoff/tier-priority-reroute",
+   "value": "task_mwq2rg6w6dh6dx 四级选路重构（取代免费优先）：routes.mjs 导出 TIER_PRIORITY=[paid主力/free免费/backup省钱/last视觉兜底]+isPrimaryModel(模型名含deepseek-v4.1-flash，点/连字符都认)+isVisionRoute；TIER_ORDER 改由 TIER_PRIORITY 派生=paid,free,backup,last（主力优先）。tier键名不动兼容面板，语义重定义。视觉档：selectRoute 非vision域自动跳过 last档视觉route（非硬拦，靠 opts.allowVision/wantedTiers/vision域绕过），显式指定视觉/生成类走 resolveChatRoute explicit 直接 gateRoute 放行，源码零 forbid/block 规则。修16条失效断言为语义判断（原5+qodercn被禁连锁11），verify-routes 546→555。对抗3/3报红。全绿 selfcheck8/verify-routes555/verify-chat-feedback195/verify-p16 92。盘上5域结果：全部命中 workbuddy/deepseek-v4.1-flash 主力。误伤报告已发Lead：disabledProviders含raccoon/qodercn/deepseek-official，4条视觉模型被整厂停(运营决定非生成类)，disabledRoutes无误伤。备份 D:\\软件\\DSH\\备份\\_reroute-20261121-151740。"
+  },
+  {
+   "slot": "handoff/lane-concept-fix",
+   "value": "层级概念修正（task_mwq2cmoj4wgyf6）完成。核心事实：dsh_team_models 去重的 14 个 provider 前缀（our-free-model / modlens-our-free-model / deepseek-official / deepseek-modlens / workbuddy / modlens-workbuddy / raccoon / qoder / qodercn / zcode / modlens-zcode / loomy / cline / ollama-local）都是 our-free-model 插件 relay 127.0.0.1:18326 内的上游通道，不是 14 家厂商；字段名 provider 保持不变（兼容配置与断言）。改动：routes.mjs 导出 PLUGIN_ID/RELAY_ENDPOINT/LANE_OF/LANE_COUNT=14；index.js op=routes 注入 laneCount/lanes/pluginId/relayEndpoint；client.js 模型页签顶部加「以下 N 条通道全部来自插件…不是 N 家独立厂商」并把厂商/整厂文案改通道（provider-disabled→通道已停用、provider-cap→通道花费上限、整厂停用→停用整条通道）；route-config.json 两条 disabledReason 加层级说明（deepseek-official 点明官方 API+个人余额）。脚本新基线：selfcheck 8/8、verify-routes 536（+24）、verify-chat-feedback 195（+13）；变异检验改坏文案 fail=5，还原回绿。备份：D:\\软件\\DSH\\备份\\_20261121-1510-architect-lane\\。坑：relay settings.json 的 key 路径被 CC Safety Net 的 secret.ext-pattern.key 规则拦，别在命令里读 .key 字段。"
+  },
+  {
+   "slot": "handoff/stability-flakey-revision",
+   "value": "Lead 修订定稿（覆盖前两条 memory 的「全灭/回退」倾向，不回退路由）：our-free-model 3 条（kimi/opencode-v4.1-flash-free/step5）是「波动可用」非坏——三组独立实测 14:38 auditor 超时/配额、14:51 Lead 89.6s/405ms/5.4s 全 OK、15:00 Lead kimi 99s 真产出但另两条150s超时。落地：routes.mjs 加 stability 字段（stable/flakey）+ stabilityOf()/isFlakey()；FREE_POOL 重排 hy4flash-free 第一、4 条 stable 在前、3 条 flakey 垫底；candidatePool 排序在 allowed 后加 stability 维度（防 our-free-model providerRank=0 顶主力）；selectRoute 默认只选 stable，flakey 仅显式点名/稳定项全挡才用。verify-routes 512 断言，变异 3/3 报红。amd 9 条定性改为「EAC 账号未开通 amd 上游，同 key 测 kimi 200 OK 反证」，非 key 错/非模型问题。回滚点 D:\\软件\\DSH\\备份\\_eac-revise-20261121-150325\\。"
+  },
+  {
+   "slot": "handoff/term-cn-batch2-and-amd-dead",
+   "value": "task_mwq1ycv32l7jee 完成：①client.js 术语中文化第二批——TIER_LABEL_CN/BLOCKED_LABEL_CN 改中文主+英文括号，新增 withKey 防重复括号；裸露英文键 effort/attempts/preset/provider-cap/sessionState 等改中文；__vm 新增导出 tierLabelCn/blockedLabelCn。verify-chat-feedback 补 [2.5] 段 41 断言，141→182。②关键坑：PowerShell Get-Content 读 UTF-8 中文会乱码且行号错位——提取对照必须用 node readFileSync(bak,'utf8')。③amd/* 9 条 14:59 实测全灭（Invalid bearer token/auth），EAC 16 条 0/16 可用，无法承担写文档——docs\\115 由本地落盘并如实记录；已报 Lead。④验证全绿：selfcheck8/verify-chat-feedback182/verify-routes500/verify-p16 92；变异 2/2 报红。回滚 client.js：D:\\软件\\DSH\\备份\\_eac-20261121-145331\\client.js.bak-before-cn2。产物 docs\\115-术语中文化落地记录.md。"
+  },
+  {
+   "slot": "handoff/eac-routes-and-unknown-multiplier",
+   "value": "routes.mjs 接入 our-free-model EAC 3 条（task_mwq1v2o0289opc）：①命名坑——验收书写短名 kimi-k3.1-pro/step-5-preview，但 relay 全名（docs\\114+probe脚本）是 moonshotai/kimi-k3.1-pro、stepfun-ai/step-5-preview、opencode/deepseek-v4.1-flash-free；按全名接入才与 routeKey 一致。②倍率未知新规则：新增 KNOWN_FREE_PROVIDERS=[our-free-model,raccoon,qodercn,workbuddy]+effectiveMultiplier()，未知但 provider 在名单→按0并标 multiplierInferred=true 放行，非名单仍 multiplier-unknown 排除；2 条 EOL 改走 DEFAULT_CONFIG.disabledRoutes（早于倍率判定）。③FREE_POOL 4→7，3条排 hy4flash-free 之后。④验证：selfcheck8/verify-routes 500/verify-p16 92 全绿，3/3 变异报红。备份 D:\\软件\\DSH\\备份\\_eac-20261121-145331。冲突：docs\\114(14:38采样)称 kimi/step5 超时不可用，本任务按用户更新实测接入。"
+  },
+  {
+   "slot": "handoff/eac-routes-audit",
+   "value": "EAC 16 条实测(2026-11-21 14:43)：严格口径 0 条稳定可用。9 条 auth(502 Invalid bearer token=EAC上游凭据失效)、3 超时、2 模型 EOL、1 quota。唯一首轮 OK 的 opencode/deepseek-v4.1-flash-free 复核 3/3 QUOTA_EXHAUSTED，不可依赖。坑：relay 把上游失败统一包成 502，需按 error.code/message 分类，不能只看 HTTP 状态；遇 401/403 才停 provider，502 不算。产物：ai-team-console/docs/114 + run/free-routes-eac.json(schema free-routes/v1, verdict.strict=0)。注入建议：稳定口径应注入空数组。"
+  },
+  {
+   "slot": "handoff/113-panel-i18n",
+   "value": "产物 docs\\113-面板中文化与信息架构规格.md（269 行）。P0：client.js L1759-1764 页签表已引用 TabStart/TabMembersGroup/TabTasks/TabMore，但这 4 个函数全库无定义 → 面板加载即崩。实现任务第一步先补函数。术语证据锚点：blockedBy 产出 routes.mjs L1111-1135+中文说明表 L1265-1268；tier 四档 free/paid/backup/last 在 L120-158；projectedTokens 定义在 sessionUsage.mjs L11（与 GUI 圆环同源）；S2_5/S6 在 pipeline.mjs L209/L528。页签 9→5 契约见 §2，每页含用途/首屏/按钮；危险操作确认模板见 §4（整厂停用 L1712 现无确认，必须补）。"
+  },
+  {
+   "slot": "handoff/client-encoding-and-panel-vm",
+   "value": "铁律：改 lib/client.js 禁用 PowerShell 文本往返（Get-Content -Raw + WriteAllText 会把无 BOM UTF-8 按 GBK 解码，中文变「閳」并吞掉引号→语法崩）。只用 edit/write 工具，或 node fs 字节级。本项目无 git，恢复点见 D:\\软件\\DSH\\备份\\_maker-*。面板反馈做成模块级纯函数 + exports.__vm（sourceLabel/splitRouteKey/chatRouteOptions/chatOpenVM），verify-chat-feedback.mjs 真跑它；端到端别手写字段名（会自己洗掉接线错误），用 {...be}。verify-routes 基线 476 且有成员并发写，别动。"
+  },
+  {
+   "slot": "handoff/chat-open回落契约",
+   "value": "chat-open 契约（docs\\111+112）：回落唯一入口 chat.resolveChatRouteOpt → routes.resolveChatRoute。P18 用户拍板推翻 P17 的「显式=用户主权」：显式指定若命中 disabledProviders/disabledRoutes/providerMultiplierCap/maxMultiplier，一律 ok:false + reason:'explicit-blocked'，在 registry.create 之前拦死，带 blocked/hint(含可用替代)/alternatives；合规通道显式传照旧放行不误伤。回落三档 explicit>config-chain(leadRoute 打头)>host-default，全挡则 source=null 报 no-route。坑：改完需重启 dsh web（ESM 缓存）；PowerShell Set-Content 写 BOM 会被 selfcheck 抓红。"
+  },
+  {
+   "slot": "handoff/route-window-and-disable",
+   "value": "窗口真值(routes.mjs CONTEXT_WINDOW，measured源)：qodercn/qfmodel=971000、workbuddy/hy4flash-free=935000、raccoon/sn-sensenova-6-8-flash=469000；lite 维持 128000（仅证实29987，不许跟兄弟上调）。贴边折扣 conservativeWindow=×0.95，仅 measured 打折，fitCheck 仍用表值(两口径别混)。禁用：route-config.json disabledProviders=[raccoon(账号级限流12:47), deepseek-official(余额耗尽12:54)]，leadRoute 已切 qodercn/qfmodel/xhigh。坑：verify 断言别只按 disk 配置遍历——摘条目=跳过不是报红，必须加硬编码期望名单(EXPECT_DISABLED)，变异才抓得住。"
+  },
+  {
+   "slot": "handoff/免费池窗口实测口径",
+   "value": "窗口实测（11:41–12:48，真实请求，以 usage.prompt_tokens 为准）：hy4flash-free ≥935K（1088K 档报 11115 prompt is too long＝唯一 window 证据，上限≈1M）；qodercn/qfmodel ≥971K（1056K 起 502 provider_error＝transport，不作窗口结论）；sensenova-flash ≥469K（阶梯打满未失败，上限未知）；sensenova-flash-lite 仅 ≥29K。docs\\108 的 128K 低估 3.7–7.6 倍。坑①只校验末行会被 head+tail 截断骗过，必须埋中段唯一针；坑②标定失败别回退 ratio=1（v1 因此把 708K 记成 256K）。副作用：raccoon 两号已被滚动限流→账号级「异常调用」临时受限，恢复前 raccoon 系勿作 spawn 候选。"
+  },
+  {
+   "slot": "handoff/verify-after-restart-team",
+   "value": "两个坑（同一件事）：①默认团队不能取 snapshot.team.teams[0]——那是旧团队 team_mwpg8cjh43btf，成员 model 停在 workbuddy/deepseek-v4-pro；改默认 team_mwpsxeul9lagp（当前团队）。\n②op=snapshot 必须带 ?team=，不带就按 teams[0] 组装，看着像「buildSnapshot 缓存了成员路由」，实测无缓存（每次现拉 sidecar）。\n证据：GET /api/teams/team_mwpsxeul9lagp/members → architect/maker=deepseek-official/deepseek-flash、auditor=qodercn/qfmodel，一直是新值。\n已加断言：snapshot 返回的 teamId 必须等于请求的 teamId，不等直接 FAIL。\n覆盖方式：位置参数 `node script.mjs team_xxx`（本机 node 是 shim，--flag 会被吞）。"
+  },
+  {
+   "slot": "handoff/route-fit-usage",
+   "value": "Lead 会话在 session 日志里没有 usage → 必须读 token-meter 投影：\n<harness>/storages/session_projcache/sessions/<sid>.json → record.rows.contextPressure.val\n{contextWindow, pressureTokens, surfaceTokens, sampledSurfaceTokens}\nprojected = max(0, pressure + surface - sampled)；used = projected ?? pressure（同 tools\\lead-context.mjs）。\n实测 Lead=397988（projected）/窗口 1048576。取数入口 lib\\orchestrator\\sessionUsage.mjs（离线可直调，不必重启）。\n坑：contextWindows 覆盖只在「该 routeKey 出现在链里」时生效，否则判定仍用表值（无害但别指望它改结论）。\n服务未重启 → op=route-fit 的 HTTP 层需重启后复验。"
+  },
+  {
+   "slot": "handoff/verify-after-restart",
+   "value": "产物：ai-team-console\\scripts\\verify-after-restart.mjs（638 行，纯 GET）。\n坑1：本机 node = Electron shim（.desktop-bin\\node.cmd），`--flag=` 被 Chromium 吞，传参只能用 env（DSH_WEB / VERIFY_TEAM / VERIFY_JSON）。\n坑2：「未重启」唯一指纹 = op=routes/route-config/route-fit 回 400 {\"error\":\"unknown op: X\"}；team-health 与 snapshot 是老 op，旧版就有，不能用来判版本。\n坑3：snapshot 不含路由明细（freePool/chain/config），第 9 页签 TabModels 自拉 op=routes；脚本该口径已写在输出里。\n验证：未重启 3FAIL/2PASS exit1；fixture 阳性 5/5 PASS exit0；变异 cap/nofree/notokens 各自精确 FAIL。"
+  },
+  {
+   "slot": "handoff/lead-context-metering",
+   "value": "占用不看 totalTokens（本机会话多数无此字段）：用 projcache 的 contextPressure.val，projectedTokens=pressureTokens+surfaceTokens-sampledSurfaceTokens；pressureTokens=input+cacheRead+cacheWrite。读法：node tools/lead-context.mjs --session <id>。窗口取运行态 request/context.contextWindow（150 会话实测）：raccoon/v4.1-flash-1017 与 qodercn/qfmodel 1,000,000；deepseek-official 两档 1,048,576；workbuddy/hy4flash-free 960,000；sn-sensenova 两条 256,000（docs/108 的 128K 保守值可废）。压缩阈值=min(W*0.8, W-maxTokens-65536)，窗口变小即刻摘要。切换只 append model/selection，不改历史，但会改写 cordis.patch.yml 的 agent-default-model。"
+  },
+  {
+   "slot": "handoff/route-gate-108",
+   "value": "停用粒度是 route 不是 provider：workbuddy cap=0 只留 x0.00 的 hy4flash-free，整厂停用会连免费源一起废。gateRoute 判定顺序 provider-disabled → route-disabled → multiplier-unknown（保守排除，绝不当 0）→ cap（provider 级优先于全局 maxMultiplier=0.6）。resolveConfig 会浅合并默认 cap，所以「不设限」测试必须显式给 workbuddy 一个高 cap，否则默认 0 仍生效（踩过，测试红一片）。selectRoute 逐档判：reject 跳过、compress-first 就停。窗口未标注一律 128K。"
+  },
+  {
+   "slot": "handoff/context-aware-model-switch",
+   "value": "上下文感知模型切换（docs\\108）：\n① V4.1 系 1M（workbuddy/deepseek-v4.1-flash、raccoon/sn-deepseek-v4-1-flash-1017、deepseek-official/deepseek-flash）；loomy V4.1 未标注→128K；dsv4-pro 系 workbuddy/official/modlens 都 1M，qoder 未标注→128K。\n② 探测占用用 usage.totalTokens（非 inputTokens——inputTokens 是单轮增量会缩水）。transcript.mjs 已读 usage，需加 latestUsage 聚合。\n③ fitCheck 三态：needed*1.1<=window*0.8=safe；needed<=window*0.8<needed*1.1=compress-first；needed>window*0.8=reject 禁止硬切。\n④ 付费链 audit 的 paid 由 dsv4-pro 换 deepseek-official/deepseek-flash（V4.1），dsv4-pro 降为新增 last 档；链 3 档→4 档。"
+  },
+  {
+   "slot": "handoff/delivery-fallback",
+   "value": "deliverBrief 兜底约定：两失败分支 ok 恒 false（生成指令≠投递成功）。dispatchCommand 的 assignee 必须是 member.id，用 member.name 会被 dsh_team_task 拒；plan 缺 step 自动补 S{i+1}；acceptance 空则整键省略；一律 JSON.stringify。rebuild 用 dsh_team_member action=update + 显式 contextMode:\"fresh\"（restart 判据只看该键是否出现），不先 retire——实测 retire 后 spawn 的 id 不变，选 update 只因少一步。command 与 payload 同源生成，不许各取一次。"
+  },
+  {
+   "slot": "handoff/routes-module",
+   "value": "routes.mjs 约定：域名只有 code/audit/probe/vision/quick；成员域 architect/maker/auditor 走 normalizeDomain 第三层映射（不写这层会被当未知域回落 quick，白掉免费优先）。免费池只放实测可用 4 条，our-free-model/* 与 qoder/qfmodel 一律不进。effort 必须过 EFFORTS 白名单夹取（raccoon 只认 on），否则宿主 spawn 才炸。S2_5 已有成员只 PATCH role（HOT_PATCH，不重建会话），provider/model 不动。op=routes 与 S2_5 新行为需重启 dsh web 才生效（GET 现在仍 400 unknown op）。"
+  },
+  {
+   "slot": "handoff/deliverBrief-fallback-dispatchCommand",
+   "value": "deliverBrief 兜底约定（docs\\107 v2 订正）：\n① no-lead-agent 与 stale-lineage 两分支 report 都加 dispatchCommand（完整 dsh_team_task 串，全真实取值、JSON.stringify 转义）+ dispatchPayload。\n② 订正：retire+spawn 不换 member id——retire 只 append 事件置 retired 不删行（cli core.mjs:405 仅 remove 才 DELETE），spawn 的 registerAgent 按同名 UPDATE 回同 id（core.mjs:532-551）。两条路径（update vs retire+spawn）都换 agentSessionId，默认选 update 只因为少一步、不改语义。\n③ dsh_team_task assignee 只收 member id；plan 元素 step 必填缺则补 S{i+1}。\n④ 兜底分支 ok 保持 false。"
+  },
+  {
+   "slot": "handoff/第1轮基线-重建后",
+   "value": "第1轮基线（重建后，2026-11-21 11:20–11:24，auditor）：verify-team-paths 4/4 MATCH、mismatched=0、exit0；verify-p16-team-mode pass=53 fail=0；selftest-patch-cwd pass=28 fail=0；check-free-routes 可用 4/9（workbuddy/hy4flash-free、raccoon sensenova×2、qodercn/qfmodel），our-free-model 0/4、qoder 0/1，与 103 零漂移。DAG 9 节点全 done、无派发给 auditor 的任务。产物：ai-team-console\\docs\\105-重建后基线巡检.md"
+  },
+  {
+   "slot": "handoff/free-route-probe",
+   "value": "巡检免费模型只需打 OFM chanGateway relay：http://127.0.0.1:18326/v1/chat/completions，Bearer key 现读 D:\\软件\\DSH\\appdata\\harness\\our-free-model\\settings.json 的 chanGateway.relay.key，model 填 \"provider/model\"（如 raccoon/sn-sensenova-6-8-flash、qodercn/qfmodel），一次覆盖全部 provider。坑：思考与答案共享 max_tokens 的免费家（sensenova）用 64 会 finish_reason=length 且 content 空＝配额假阴性，须升到 1024 复测。脚本 scripts/check-free-routes.mjs，--json 有 availableCount/exitCode 供 spawn 决策。"
+  },
+  {
+   "slot": "handoff/patch-cwd-script",
+   "value": "scripts/patch-cwd.mjs 已交付（默认dry-run/--apply/--rollback，锚点失配exit 2，写前留.bak-cwd-<ts>）。两个坑：①幂等判据不能只写单行正则——本补丁把一行展开成三行，用 /\\...childCwd !== undefined \\? \\{/ 认「已打过」会漏认，重跑被误判 anchor-miss 报 exit 2；要写 /\\.\\.\\.childCwd !== (void 0|undefined)\\s*\\n?\\s*\\?\\s*\\{/。②续行缩进要用 replace 回调的 whole+offset 回原文件取行首空白，不能拿 match 本身算（match 从 ... 开始不含缩进），也不能额外再加一层。验证纪律：对真实宿主文件副本打完必须 node --check 三文件仍全绿；--rollback 后与原件 SHA256 逐字节一致。selftest 28 断言全过。"
+  },
+  {
+   "slot": "handoff/delivery-last-mile",
+   "value": "更正前轮推测：subagents.sendMessage 的实例校验 agents.get(id)===sender 因 dsh-agent:597 get 与 :615 list 同源(都取 store 里同一 entry.agent)，面板场景恒通过。真正闸门是 authorizeLineage 的 parentSession===parent.id。实测：本团队三成员 header.parentSession 全等于当前 Lead session-6e33f884，故 S6 投递具备通过条件。chat-open 成功建 3 线程(turns 4/2/1)证明 HTTP ctx 里 agents.list() 能枚举到顶层 agent——findParentSession 与 pickLeadAgent 判据逐字相同(chat.mjs:213 / pipeline.mjs:829)。op=agent-probe 已加但旧版未重载(HMR 关闭)，重启后一条命令可得运行时读数。文档 docs/104。"
+  },
+  {
+   "slot": "handoff/模型路由实测",
+   "value": "模型路由实测（2026-11-21 11:00 时点，16 条真实调用）：our-free-model/* 整族不可用（OpenCode egress \"Free usage limit reached\"）；qoder 主区未登录（qoder/qfmodel、qoder/dfmodel 报「未配置凭据」）；qodercn 可用。实测可用免费 4 个：workbuddy/hy4flash-free(10.7s,text)、raccoon/sn-sensenova-6-8-flash(8.6s,vision)、sn-sensenova-6-8-flash-lite(8.9s,vision)、qodercn/qfmodel(4.5s,vision)。付费 deepseek 全可用：deepseek-official/deepseek-v4-pro(8.5s)、deepseek-flash(2.4s)、workbuddy/deepseek-v4-pro(4.5s)、deepseek-v4.1-flash(4.4s)、raccoon/sn-deepseek-v4-1-flash-1017(6.5s)。验证方法（可复用）：POST /ai-team/api?op=chat-open {sceneId,provider,model,reasoningEffort} → op=chat-send 一句 → 解压 session.v4.jsonl.zstd（Node zlib.zstdDecompressSync 逐帧）看 turn/end reason 与 assistant/message。决策矩阵已写 docs/103-成员模型路由矩阵.md（免费优先+付费降级+代码字典三元组）。"
+  },
+  {
+   "slot": "handoff/cwd-patch-persistence",
+   "value": "cwd 补丁只能改 dsh-subagent/lib/index.js 内联副本：该包是打包产物，childSessionMeta 定义在 index.js:346、调用在 :1446，lib/types/child-agent.js+manager.js 是死文件（package.json main 指 lib/index.js）。cordis.patch.yml 只能覆盖 Cordis 插件条目 config（dsh-app-boot parsePatchList），改不了依赖包源码。monkey-patch childSessionMeta 导出无效——startActivation 内部按函数名直接调用，非 this/导出表间接调用。持久化靠脚本 scripts/patch-cwd.mjs 幂等重打，锚点 OLD_FN/OLD_CWD/OLD_CALL 抄自 index.js:346/:350/:1446，失配 exit 2。升级后复验：Select-String childCwd 应为 False→重打→True→重启查 session cwdTag。"
+  },
+  {
+   "slot": "handoff/p16-team-mode-fix-b",
+   "value": "修复B已落地 ai-team-console（v0.5.0）：pipeline 新增 S2_5 补成员记录、S6 dispatch 后必须 subagents.sendMessage 投 brief，投不进即 ok:false；新增 teamHealth.mjs 三态(ok/unbound/stale-lineage) + op=team-health。坑1：S6「no_ready_task+running>0」不能直接判通过——running 是全团队计数，本轮任务可能根本没进，必须 inspectRoundTask 回查状态。坑2：只测 deliverBrief 返回值抓不到「if(!delivered.ok) 被改成 if(false)」这类假通过，必须用桩 fetch+真 registry 跑整步。修复A(宿主dsh-subagent childSessionMeta)只有方案 docs/101，未落地，故 verify-team-paths 仍 exit 1 属预期。"
+  },
+  {
+   "slot": "handoff/team-mode-root-cause",
+   "value": "团队模式退化为单会话单路径三根因：①成员会话 header.cwd 继承父会话而非 team.workspace——dsh-subagent childSessionMeta(index.js:346/child-agent.js:107) 硬编码 cwd:parentHeader.cwd，dsh_team_spawn(index.js:2785) 传的 request.cwd 只进 resolveDirectory 不进 meta，改法给 childSessionMeta 加 childCwd 参数、调用点 index.js:1446/manager.js:380 传 resolveDirectory 结果。②ai-team-console 开团从不 spawn 成员(pipeline.mjs S2 只建队+S6 只 dispatch)，需新增 spawn+sendMessage 投递。③跨会话成员失效：subagent authorizeLineage(index.js:1659) 校验 parentSession===parent.id，leadByTeam 内存态重启即失，旧成员 parentSessionId 钉死旧 lead。判定并行口径：信 DAG task.status+session 文件 mtime，不信 /api/teams runningCount。"
+  },
+  {
+   "slot": "handoff/验收脚本与cwdTag编码",
+   "value": "验收脚本 <USER_DATA>\\ai-team-console\\scripts\\verify-team-paths.mjs（node 直跑，无第三方依赖）：node verify-team-paths.mjs [teamId]，全匹配 exit 0 / 任一成员不匹配 exit 1 / team 不存在或 API 不可达 exit 2。输出每成员 name/session/status/actualCwdTag/expected/MATCH。cwdTag 编码规则（4/4 实测对照通过）：'--'+path.replace(/:/g,'').replace(/\\\\/g,'-')+非ASCII→'~'+charCodeAt大写hex4位+'--'；如 workspace <USER_DATA> → --D-~8F6F~4EF6-DSH-~7528~6237~6570~636E--。成员实际 cwdTag=harness\\sessions 下含该 sessionId 子目录的父目录名。当前实测 3 成员全落在 harness 标签（MISMATCH，exit 1），maker 修复后重跑应得 exit 0。SESSIONS_DIR/TEAMS_API_BASE 环境变量可覆盖路径（fixture 自证用）。坑：CC Safety Net 拦 Remove-Item -Recurse -Force（含 cwd 内相对路径），清理用逐个文件删除+倒序删空目录。"
+  },
+  {
+   "slot": "handoff/取证判定口径",
+   "value": "团队并行度取证口径（2026-11-21 10:42 实测）：1) /api/teams 顶层 runningCount 不可信（实测 0，同时刻 DAG 有 2 任务 running）；成员表 status 亦不可信（auditor 实跑中显示 idle 且 currentTaskId=null）。可信口径 = dsh_team_status detail=dag + session 文件写入面。2) 文件面：Get-ChildItem D:\\软件\\DSH\\appdata\\harness\\sessions 的 session.v4.jsonl.zstd 按 24h 过滤，cwdTag=父目录名去重即路径数。实测 55 会话/4 种 cwdTag（harness 44/_no-cwd 7/示例项目A 3/乱码 1）；本团队 3 成员 session 的 cwdTag 全是 harness 标签，而非 API 声明的 workspace <USER_DATA>。3) 旧团队 architect/auditor 均 failed，blocker 同为 \"subagent ... belongs to another parent session\"。"
+  }
+ ]
+}
