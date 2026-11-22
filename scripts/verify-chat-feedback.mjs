@@ -2,7 +2,7 @@
 /**
  * verify-chat-feedback.mjs —— 面板 chat-open「被禁通道」反馈的行为锁
  *
- * 对应任务：task_mwpyut85hs1woi（P19）
+ * 对应任务
  * 规格来源：Lead 验收 ①②③④⑤
  *
  * 为什么单独一个脚本：verify-routes.mjs 是**路由判定**的锁，且基线被钉在 476 条
@@ -21,7 +21,7 @@ import vm from 'node:vm'
 /* ── 把 client.js（window.__ModuleLoader__ 包装）在 node 里加载出 exports ──
  * client.js 顶层只有一个 window.__ModuleLoader__.load({id, factory}) 调用，
  * factory(require) 里 `var module={exports:{}}`…最后 return module.exports。
- * 所以只要接住 load()，在沙箱里调用 factory，返回值就是面板模块的 exports。
+ * 所以只要接住 load，在沙箱里调用 factory，返回值就是面板模块的 exports。
  * 不 stub 的东西一律给最小形状：本脚本只测 __vm 里的四个纯函数，不碰 DOM。
  */
 function loadClient() {
@@ -80,7 +80,7 @@ function loadClientStrict() {
   }
   sb.window = { confirm: () => true, __ModuleLoader__: { load: (def) => { captured = def.factory((id) => (id === 'react' ? reactStub : {})) } } }
   vm.createContext(sb)
-  // strict 下给未声明变量赋值会抛 ReferenceError —— 正是我们要的探针
+ // strict 下给未声明变量赋值会抛 ReferenceError —— 正是我们要的探针
   vm.runInContext('"use strict";\n' + src, sb, { filename: 'client.js(strict)' })
   return captured
 }
@@ -101,8 +101,8 @@ for (const fn of ['sourceLabel', 'splitRouteKey', 'chatRouteOptions', 'chatOpenV
   t(`  __vm.${fn} 是函数`, typeof VM[fn] === 'function', typeof VM[fn])
 }
 // —— strict 探针：本轮真实踩过「改回滚时删掉 var 声明 → 隐式全局」，
-//    sloppy 模式下静默通过、生产严格打包下才炸，所以这里在 'use strict' 里
-//    把两个函数**调用一遍**（函数体继承了脚本的严格性，未声明赋值会抛 ReferenceError）。
+// sloppy 模式下静默通过、生产严格打包下才炸，所以这里在 'use strict' 里
+// 把两个函数**调用一遍**（函数体继承了脚本的严格性，未声明赋值会抛 ReferenceError）。
 let strictErr = null
 try {
   const s = loadClientStrict()
@@ -153,8 +153,8 @@ for (const [k, cn] of Object.entries(TIER_CN_EXPECT)) {
   t(`  → 无重复括号`, !/）（/.test(s) && !s.includes('））'), s)
 }
 const BLOCK_CN_EXPECT = {
-  // 层级概念修正（task_mwq2cmoj4wgyf6）：这些前缀是插件内的「通道」，不是「厂商」。
-  // 断言锁中文主文案以「通道」打头；不再接受「厂商」。
+ // 层级概念修正：这些前缀是插件内的「通道」，不是「厂商」。
+ // 断言锁中文主文案以「通道」打头；不再接受「厂商」。
   'provider-disabled': '通道已停用', 'provider-cap': '通道花费上限',
   'route-disabled': '通道已禁用', 'global-cap': '全局花费上限',
   'explicit-blocked': '指定通道已禁用', 'no-route': '无可用通道',
@@ -170,30 +170,30 @@ t('未知档位原样带出不编造', VM.tierLabelCn('weird') === 'weird（weir
 t('未知被挡原因原样带出不编造', VM.blockedLabelCn('weird') === 'weird（weird）', VM.blockedLabelCn('weird'))
 t('空值不崩', VM.tierLabelCn('') === '未分档' && VM.blockedLabelCn('') === '不可用')
 
-/* ══ 2.7 层级概念修正（task_mwq2cmoj4wgyf6）：prefix 是插件内「通道」，不是「厂商」══ */
+/* ══ 2.7 层级概念修正：prefix 是插件内「通道」，不是「厂商」══ */
 console.log('\n[2.7] 层级概念：14 条上游通道来自同一插件，面板文案不得再称「厂商」')
 {
-  // blockedLabelCn 的三条主文案必须以「通道」打头，绝不出现「厂商」
+ // blockedLabelCn 的三条主文案必须以「通道」打头，绝不出现「厂商」
   for (const k of ['provider-disabled', 'provider-cap', 'route-disabled']) {
     const s = VM.blockedLabelCn(k)
     t(`blockedLabelCn(${k}) 以「通道」打头`, /^通道/.test(s), s)
     t(`  → 不含「厂商」`, !/厂商/.test(s), s)
   }
   const cli = readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
-  // 层级说明行（2026-11-21 白话化）：同一个模型插件 + 不同上游 + 不是 N 家独立厂商（N 取后端常量）
+ // 层级说明行（2026-11-21 白话化）：同一个模型插件 + 不同上游 + 不是 N 家独立厂商（N 取后端常量）
   t('面板有白话层级说明行（同一个模型插件、不同上游）',
     /这些通道都来自同一个模型插件/.test(cli) && /背后接不同的上游服务/.test(cli)
     && /不是 ['"]?\s*\+ laneN/.test(cli),
     (cli.match(/这些通道都来自同一个模型插件[^\n]{0,120}/) || ['(缺)'])[0])
   t('  说明行的 N 取后端 laneCount（不写死 14）', /data\s*&&\s*data\.laneCount/.test(cli))
-  // relay 字样与 IP 已从渲染文案移除（不再是"解释实现"）
+ // relay 字样与 IP 已从渲染文案移除（不再是"解释实现"）
   t('  说明行不含 relay 字样与 relayEndpoint 引用',
     !/插件（relay/.test(cli) && !/data\s*&&\s*data\.relayEndpoint/.test(cli) && !/127\.0\.0\.1:18326/.test(cli))
-  // 所有用户可见文案里不再有「厂商/整厂」（注释里刻意写「不是……独立厂商」除外）
+ // 所有用户可见文案里不再有「厂商/整厂」（注释里刻意写「不是……独立厂商」除外）
   const visible = cli.split('\n').filter((l) => /厂商|整厂/.test(l)
     && !/不是 \d+ 家独立厂商|不是 ['"]?\s*\+ laneN|不是 N 家独立厂商|层级概念|不是 14 家/.test(l))
   t('面板可见文案无「厂商/整厂」残留（说明句里作反例的除外）', visible.length === 0, visible.slice(0, 3).join(' | '))
-  // 三个指定替换
+ // 三个指定替换
   t('provider-disabled → 通道已停用', /'通道已停用（provider-disabled）'/.test(cli))
   t('厂商花费上限 → 通道花费上限', /'通道花费上限（provider-cap）'/.test(cli))
   t('整厂停用 → 停用整条通道', /'停用整条通道'/.test(cli) && !/'整厂停用'/.test(cli) && !/'整厂启用'/.test(cli))
@@ -328,7 +328,7 @@ const capVM = VM.chatOpenVM({
   alternatives: [], hint: null, tried: [],
 })
 t('cap 拦截 → rateText 说出倍率与上限（用户知道调哪里）', /0\.11/.test(capVM.rateText || '') && /x0/.test(capVM.rateText || ''), capVM.rateText)
-// v2：文案已中文化；v3（task_mwq2cmoj4wgyf6）「厂商级」改「通道级」。断言锁语义：通道级 or 全局，不再接受「厂商」。
+// v2：文案已中文化；v3「厂商级」改「通道级」。断言锁语义：通道级 or 全局，不再接受「厂商」。
 t('  → rateText 标明是通道级还是全局', /通道级|provider 级|全局/.test(capVM.rateText || '') && !/厂商/.test(capVM.rateText || ''), capVM.rateText)
 t('  → 无替代时 nextStep 指到「模型配置」页签（不是甩给用户）', /模型配置/.test(capVM.nextStep || '') && capVM.altButtons.length === 0, capVM.nextStep)
 t('  → 无替代时 copyKeys 仍有被禁通道（兜底可复制）', capVM.copyKeys.length === 1 && capVM.copyKeys[0] === 'workbuddy/deepseek-v4.1-flash', capVM.copyKeys.join(','))
@@ -436,14 +436,14 @@ console.log('\n[7] 端到端：真后端 explicit-blocked → 真前端 VM（字
       seen,
     }
   }
-  // **原样 spread**：不许逐个手写字段名。上一版写成 { alternatives: be.alternatives, … }，
-  // 于是把 chatOpenVM 里的取值改成 d.alts（变异检验C）时本组照样全绿——
-  // 手工重排等于自己把接线错误洗掉了，那就不是端到端。spread 之后字段名对不上就必红。
+ // **原样 spread**：不许逐个手写字段名。上一版写成 { alternatives: be.alternatives, … }，
+ // 于是把 chatOpenVM 里的取值改成 d.alts（变异检验C）时本组照样全绿——
+ // 手工重排等于自己把接线错误洗掉了，那就不是端到端。spread 之后字段名对不上就必红。
   const toVM = (be) => VM.chatOpenVM({ ...be })
   const disabledList = (cfg.disabledProviders || []).map((x) => String(x).toLowerCase())
   t('盘上配置确有被禁 provider（前提成立）', disabledList.length > 0, JSON.stringify(cfg.disabledProviders))
   const { ctx, seen } = mkCtx()
-  // 从真实链上挑一条「provider 确实在禁用表里」的 route（别 provider/model 错配）
+ // 从真实链上挑一条「provider 确实在禁用表里」的 route（别 provider/model 错配）
   let victim = null
   for (const dm of Object.keys(R.ROUTE)) {
     for (const row of R.routeChain(dm)) {
@@ -484,9 +484,9 @@ console.log('\n[7] 端到端：真后端 explicit-blocked → 真前端 VM（字
   t('  → sourceText 说出来源档（验收③）', /显式指定/.test(vm.sourceText), vm.sourceText)
   t('  → tried 带过来（判定过程可展开）', Array.isArray(vm.tried) && vm.tried.length > 0, JSON.stringify(vm.tried).slice(0, 90))
 
-  // no-route 端到端：配置链全挡 + 宿主快照也挡 → 面板也不能出现空白红卡
-  // 注意别用 maxMultiplier:0 + cap:{} 想当然：倍率记 0 的免费项不满足 0>0，
-  // 会被合法选中并真的建会话（本脚本第一版就踩在这，断言前提直接不成立）。
+ // no-route 端到端：配置链全挡 + 宿主快照也挡 → 面板也不能出现空白红卡
+ // 注意别用 maxMultiplier:0 + cap:{} 想当然：倍率记 0 的免费项不满足 0>0，
+ // 会被合法选中并真的建会话（本脚本第一版就踩在这，断言前提直接不成立）。
   const allProviders = Array.from(new Set([
     ...Object.keys(R.ROUTE).flatMap((dm) => R.routeChain(dm).map((row) => row.provider)),
     'qodercn', // 桩 ctx 里宿主快照挂的 provider
@@ -504,7 +504,7 @@ console.log('\n[7] 端到端：真后端 explicit-blocked → 真前端 VM（字
     `gated=${vm2.gatedRows.length} next=${!!vm2.nextStep} hint=${!!vm2.hint} alt=${vm2.altButtons.length}`)
   t('  → create 同样未被调用', c2.seen.create === null, JSON.stringify(c2.seen.create))
 
-  // 底线：宿主完全没回包（一个字段都没有）
+ // 底线：宿主完全没回包（一个字段都没有）
   const vmBare = VM.chatOpenVM({ ok: false })
   t('底线：后端什么字段都没给 → title 仍非空（不渲染空白红卡）', vmBare.title.length > 4, JSON.stringify(vmBare.title))
   t('底线：undefined 入参也不抛', (() => { const v = VM.chatOpenVM(undefined); return v && v.tone === 'bad' && v.title.length > 0 })())
