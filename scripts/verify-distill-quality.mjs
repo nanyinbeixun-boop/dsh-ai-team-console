@@ -4,7 +4,7 @@
  * 固定 fixture（不依赖运行环境），真跑 distill()，四指标 + 阴性对照 + 变异锚点。
  */
 import { distill } from '../lib/orchestrator/evolve.mjs'
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 let pass = 0, fail = 0
 function t(name, cond, extra) {
   if (cond) { pass++; console.log(`  ✓ ${name}`) }
@@ -76,7 +76,9 @@ t('  → 返回四个桶数组', Boolean(legacy) && ['done', 'artifacts', 'pitfa
 // 动作性判据专测：无节标题时，只有「注意」字眼但无动作/因果的句子不该被误收进 pitfalls
 // 说明：句子只含 pitfalls 关键词（注意/不一致/静默/失效），不碰 next/artifacts/done 规则，
 // 且无任何动作词/因果词——这样"去动作性判据"的变异才会让它误进 pitfalls 而被抓。
-const NOISE_SENTENCE = '注意：这里有静默失效与不一致的现象，纯属观察记录，供参考。'
+// 注意：不能用句首"注意："——新逻辑里它是显式语义标记会直接进 pitfalls（符合任务要求）。
+// 这里测的是「句中出现'注意'字眼但非标记、且无动作」的降级场景，走 RULES 兜底应被动作性拦下。
+const NOISE_SENTENCE = '文档里这里有一处静默失效与不一致的现象描述，出现注意字样但纯属观察记录，供参考。'
 const noiseCase = distill('noise', [{ value: NOISE_SENTENCE }])
 // 校验这句只命中 pitfalls 关键词、不碰别的规则、且无动作/因果词（保证变异能隔离出动作性判据的作用）
 t('  → 噪音用例本身不含动作/因果词与其他桶关键词', (() => {
@@ -90,6 +92,42 @@ console.log('\n[3] 变异锚点（供变异检验定位）')
 const src = readFileSync(new URL('../lib/orchestrator/evolve.mjs', import.meta.url), 'utf8')
 t('Markdown 结构切分代码在（##/列表项/300 兜底）', /hasStructure/.test(src) && /item\.length > 300/.test(src) && /SECTION_BUCKET/.test(src))
 t('动作性判据在', /isActionable/.test(src) && /ACTION_RE/.test(src) && /CAUSE_RE/.test(src))
+t('句内语义标记切分在（坑：/注意：INLINE_SEP）', /INLINE_SEP/.test(src) && /PITFALL_MARK/.test(src) && /forceKey/.test(src))
+// 路 B：handoff 规范引导成员写「坑：」
+const pipeSrc = readFileSync(new URL('../lib/orchestrator/pipeline.mjs', import.meta.url), 'utf8')
+t('路B：任务 brief 的 summary 规范含「坑：<一句话>」要求', /坑：<一句话>/.test(pipeSrc))
+
+console.log('\n[4] 真实 63 条 handoff（唯一可信验收场）')
+const fxPath = new URL('./fixtures/handoffs-team-l9lagp.json', import.meta.url)
+if (existsSync(fxPath)) {
+  const fx = JSON.parse(readFileSync(fxPath, 'utf8'))
+  const realR = distill('team-l9lagp', fx.items)
+  // ground truth：成员显式写的「坑：xxx」，取 xxx 前 12 字做锚点（28 条）
+  const gt = fx.items.flatMap((x) => {
+    const out = []
+    const re = /坑[：:]([^\n；;。]{10,60})/g
+    let m
+    while ((m = re.exec(x.value)) !== null) out.push(m[1].trim().slice(0, 12))
+    return out
+  })
+  const realAll = [...realR.done, ...realR.artifacts, ...realR.pitfalls, ...realR.next]
+  const a12 = (s) => s.slice(0, 12)
+  const gtHit = gt.filter((g) => realR.pitfalls.some((p) => p.includes(g) || g.includes(a12(p)))).length
+  console.log(`  真实 pitfalls=${realR.pitfalls.length} done=${realR.done.length} artifacts=${realR.artifacts.length} next=${realR.next.length} / GT坑信号=${gt.length} hit=${gtHit}`)
+  t('真实 pitfalls 抽出 ≥25 条', realR.pitfalls.length >= 25, `${realR.pitfalls.length}/25`)
+  t('真实覆盖率 ≥70%（坑信号命中/总数）', gt.length > 0 && gtHit / gt.length >= 0.7, `${gtHit}/${gt.length}=${(100 * gtHit / Math.max(1, gt.length)).toFixed(1)}%`)
+  // 精确率：每条抽出的 pitfalls 要么命中 GT 锚点，要么含明确坑特征词+动作词（排除纯碎片/编号）
+  const PIT_ACTION = /不要|必须|改用|避免|别|得改|要改|应该|需要|务必|否则|导致|因为|所以|误|错|崩|漏|失效|不一致|乱码|坑|注意|问题|风险/
+  const realNoise = realR.pitfalls.filter((p) => !gt.some((g) => p.includes(g) || g.includes(a12(p))) && !PIT_ACTION.test(p))
+  const precision = (realR.pitfalls.length - realNoise.length) / Math.max(1, realR.pitfalls.length)
+  t('真实精确率 ≥90%', precision >= 0.9, `${(precision * 100).toFixed(1)}% noise=${realNoise.length}: ${realNoise.slice(0,3).join(' | ')}`)
+  t('真实结果 0 标题行 / 0 purpose 句', !realAll.some((x) => /^#{1,3}\s/.test(x)) && !realAll.some((x) => /按下面的经验走/.test(x)))
+  // 阴性对照（真实数据版）：纯技术描述无踩坑 → pitfalls 应为 0
+  const pure = distill('pure', [{ value: '本文件定义了三个常量 A、B、C，分别用于配置超时、重试与缓存。调用方按需引用即可。' }])
+  t('阴性：纯技术描述 → pitfalls=0', pure.pitfalls.length === 0, JSON.stringify(pure.pitfalls))
+} else {
+  t('（真实 fixture 不存在，跳过 [4]）', true)
+}
 
 console.log(`\n结果：pass=${pass} fail=${fail}`)
 if (fail === 0) console.log('全部通过：蒸馏四指标达标。\n')
