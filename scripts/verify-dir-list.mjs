@@ -100,8 +100,12 @@ t('盘符根 source=drive', defSug.filter((r) => /^[A-Za-z]:\\$/.test(r.path)).e
     const userHit = userSug.filter((r) => Detect.normalizeDir(r.path) === customPath)
     t('自定义根 source=user', userHit.length === 1 && userHit[0].source === 'user', JSON.stringify(userHit))
     t('  → 同一路径只出现一次（不重复）', userHit.length === 1, `出现 ${userHit.length} 次`)
+    // 默认根的位置由 detect 模块决定（可从环境变量覆盖），这里动态取，
+    // 不写死具体路径——否则换了数据目录就会误报失败。
+    const defaults = Detect.defaultRoots().map((r) => Detect.normalizeDir(r.path))
     t('  → 默认三个仍在（并集，不再被自定义顶掉）',
-      ['D:\\代码', 'D:\\软件\\DSH\\用户数据', 'D:\\资料'].every((d) => userSug.some((r) => Detect.normalizeDir(r.path) === Detect.normalizeDir(d))))
+      defaults.every((d) => userSug.some((r) => Detect.normalizeDir(r.path) === d)),
+      `默认=${JSON.stringify(defaults)} 实际=${JSON.stringify(userSug.map((r) => r.path))}`)
  // 同路径既是默认又是用户（如把默认根写进配置）→ source 应为 user（用户更具体）
     await fsProm.writeFile(cfgFile, JSON.stringify({ roots: [{ path: 'D:\\代码', label: '我把默认根也加了' }] }), 'utf8')
     const clashSug = await Detect.suggestWorkspaces({ userDataRoot: tmpRoot })
