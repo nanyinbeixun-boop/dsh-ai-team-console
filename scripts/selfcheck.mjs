@@ -78,14 +78,14 @@ check('client 服务依赖声明一致', () => {
   const m = src.match(/var inject = \[([^\]]*)\]/)
   if (!m) return 'client.js 里找不到 inject 声明'
   const actual = m[1].split(',').map((s) => s.trim().replace(/['"]/g, '')).filter(Boolean)
-  // client.js 用短名（slots），package.json 用包名；只要数量匹配且短名能在包名里找到即可
+ // client.js 用短名（slots），package.json 用包名；只要数量匹配且短名能在包名里找到即可
   const ok = actual.every((a) => declared.some((d) => d.includes(a)))
   return ok ? true : `client 用了 [${actual.join(',')}]，package 声明 [${declared.join(',')}]`
 })
 
 /* ── 5. 各模块语法真解析（不再只看「文件非空」） ────────────────
  * 旧版这一项只检查文件非空，等于声称「语法无误」却不做语法检查——
- * 和流水线 S6 假通过同一类毛病。这里改成真跑一次解析：
+ * 和流水线 S6 假通过同一类毛病。这里改成真跑一次解析
  * 1) 先试 node --check（对 ESM/CJS 都有效）
  * 2) 失败再试 new Function（浏览器 factory 包裹的 client.js 用它兜底）
  * 两种都失败才算语法错。
@@ -100,7 +100,7 @@ check('lib 下 JS 模块语法无误（真解析）', () => {
     const r = spawnSync(process.execPath, ['--check', f], { encoding: 'utf8' })
     if (r.status === 0) continue
     try {
-      // eslint-disable-next-line no-new-func
+ // eslint-disable-next-line no-new-func
       new Function(txt)
     } catch (e) {
       const msg = String((r.stderr || '').split('\n').find((l) => /Error|error/.test(l)) || e.message || '解析失败').trim()
