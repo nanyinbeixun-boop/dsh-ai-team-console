@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * verify-evolve-config.mjs —— 蒸馏门槛可配置（task_mwqf09kbh4lag）行为锁
+ * verify-evolve-config.mjs —— 蒸馏门槛可配置行为锁
  * 用临时 DSH_USER_DATA_ROOT 隔离真实配置；子进程式 env 注入 + 动态 import。
  */
 import { mkdtempSync, writeFileSync, existsSync, readFileSync } from 'node:fs'
@@ -56,7 +56,7 @@ const { mkdirSync } = await import('node:fs')
 mkdirSync(join(tmpRoot, '_AI团队手册'), { recursive: true })
 writeFileSync(regFile, JSON.stringify({ version: 1, updatedAt: now, scenarios: [{
   id: 'test-distill', name: '蒸馏测试', kind: 'general', workspace: tmpRoot, presetId: 'ai-team',
-  handbookDir: join(tmpRoot, '_AI团队手册', 'test-distill'), teamId: 'team_mwpsxeul9lagp',
+  handbookDir: join(tmpRoot, '_AI团队手册', 'test-distill'), teamId: 'team_verify_a',
   leadSessionId: '6e33f884-2cb3-4fe3-9e26-d86cf97af24d', state: 'running', rounds: 1, createdAt: now,
 }] }), 'utf8')
 // 门槛=3（默认）时 rounds=1 被挡，reason 带数字
