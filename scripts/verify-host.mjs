@@ -28,7 +28,9 @@ console.log('\n[1] 适配层在空/残缺 ctx 下降级')
   t('clearInbox(null) 为 false', Host.clearInbox(null) === false)
   t('canSendToMember(null) 为 false', Host.canSendToMember(null) === false)
   t('registerSlot(null) 为 false', Host.registerSlot(null, 'x', {}, () => null) === false)
-  t('registerWebRoute(null) 为 false', Host.registerWebRoute(null, {}) === false)
+  // registerWebRoute 成功返回 disposer 函数，失败返回 null——
+  // 返回值语义从「布尔」改成「可撤销句柄」，这里按新契约断言
+  t('registerWebRoute(null) 返回 null', Host.registerWebRoute(null, {}) === null)
   t('modelSelection(null) 为 null', Host.modelSelection(null) === null)
 }
 
@@ -80,7 +82,7 @@ console.log('\n[3] 正常 ctx：能力探测 + 调用')
 
   t('registerSlot 成功', Host.registerSlot(ctx, 'sidebar', { id: 'x' }, () => null) === true)
   t('registerEffect 成功', Host.registerEffect(ctx, () => {}, 'label') === true)
-  t('registerWebRoute 成功', Host.registerWebRoute(ctx, {}) === true)
+  t('registerWebRoute 成功', typeof Host.registerWebRoute(ctx, {}) === 'function')
 }
 
 console.log('\n[4] sendToMember 的失败分支')
