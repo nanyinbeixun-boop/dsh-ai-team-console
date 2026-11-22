@@ -2,22 +2,22 @@
 /**
  * verify-routes.mjs —— 成员模型路由（routes.mjs）的行为锁
  *
- * 依据：docs\103（路由矩阵）+ docs\108（上下文感知切换规格）。
+ * 依据：（路由矩阵）+ （上下文感知切换规格）。
  * 不联网、不碰 sidecar、不建团队；纯函数 + 桩 sidecar 集成。
  *
- * 锁住的纪律（每条都是踩过或会踩的）：
- *   1. 五域四档三元组（free/paid/backup/last）——防有人顺手改链；
- *   2. 付费纪律：V4.1 系（x0.11）排在 dsv4-pro（x0.51）之前，pro 只许 last；
- *   3. 免费池口径：只放实测可用的 7 条（原 4 条 + 3 条 our-free-model EAC 实测可用），
- *      qoder/qfmodel 一律不进；已 EOL 的 our-free-model 2 条走 disabledRoutes 精确拉黑；
- *   4. 未知域回落、别名与成员域归一；
- *   5. effort 白名单夹取（raccoon 只认 on，宿主会拒非法值）；
- *   6. 窗口表：有依据的才用大值，未标注一律 128K 保守（估大 → 硬切 → 截断）；
- *   7. fitCheck 三态边界（docs\108 §3 三个具体数字）与「reject 绝不返回」；
- *   8. selectRoute 按档位逐档判，窗口不足跳过而非选后失败；
- *   9. 能力基线 role 写/读往返；
- *  10. S2_5 集成：真用 selectRoute 建成员，不硬编码；
- *  11. 变异反证：neededTokens 判定若被改成恒 true，断言必须报红。
+ * 锁住的纪律（每条都是踩过或会踩的）
+ * 1. 五域四档三元组（free/paid/backup/last）——防有人顺手改链；
+ * 2. 付费纪律：V4.1 系（x0.11）排在 dsv4-pro（x0.51）之前，pro 只许 last；
+ * 3. 免费池口径：只放实测可用的 7 条（原 4 条 + 3 条 our-free-model EAC 实测可用），
+ * qoder/qfmodel 一律不进；已 EOL 的 our-free-model 2 条走 disabledRoutes 精确拉黑；
+ * 4. 未知域回落、别名与成员域归一；
+ * 5. effort 白名单夹取（raccoon 只认 on，宿主会拒非法值）；
+ * 6. 窗口表：有依据的才用大值，未标注一律 128K 保守（估大 → 硬切 → 截断）；
+ * 7. fitCheck 三态边界（三个具体数字）与「reject 绝不返回」；
+ * 8. selectRoute 按档位逐档判，窗口不足跳过而非选后失败；
+ * 9. 能力基线 role 写/读往返；
+ * 10. S2_5 集成：真用 selectRoute 建成员，不硬编码；
+ * 11. 变异反证：neededTokens 判定若被改成恒 true，断言必须报红。
  *
  * 用法：node scripts\verify-routes.mjs
  * 退出码：0 = 全部通过；1 = 有断言失败。
@@ -33,7 +33,7 @@ function t(name, cond, extra) {
 }
 const triple = (r) => `${r.provider}/${r.model}/${r.reasoningEffort === undefined ? '∅' : r.reasoningEffort}`
 
-/* ── 期望表（docs\108 §4.2 新链，四档）────────────────────────────
+/* ── 期望表（新链，四档）────────────────────────────
  * last 档专放 dsv4-pro（或该域的最终兜底），只在 V4.1 系全不可用时启用。
  */
 const EXPECT = {
@@ -57,7 +57,7 @@ const EXPECT = {
   },
   vision: {
     free: 'raccoon/sn-sensenova-6-8-flash-lite/on',
-    // 2026-11-21 P2：vision 域首选 image 专精通道（modlens 视觉桥），不复用主力
+ // 2026-11-21 P2：vision 域首选 image 专精通道（modlens 视觉桥），不复用主力
     paid: 'modlens-workbuddy/mimo-v2.6-pro/high',
     backup: 'raccoon/sn-deepseek-v4-1-flash-1017/on',
     last: 'deepseek-official/deepseek-flash/high',
@@ -89,7 +89,7 @@ for (const [domain, tiers] of Object.entries(EXPECT)) {
     const got = hit ? `${hit.key}/${hit.reasoningEffort === undefined ? '∅' : hit.reasoningEffort}` : '（缺档）'
     t(`  ${domain}.${tier} = ${want}`, got === want, got)
   }
-  // 四档不重复：重复说明有人复制粘贴改漏了
+ // 四档不重复：重复说明有人复制粘贴改漏了
   t(`  ${domain} 四档 route 不重复`, new Set(chain.map((c) => c.key)).size === 4, chain.map((c) => c.key).join('→'))
 }
 
@@ -104,7 +104,7 @@ for (const domain of Object.keys(EXPECT)) {
   const last = chain.find((c) => c.tier === 'last')
   t(`${domain} paid 档不是 v4-pro`, !isPro(paid.key), paid.key)
   t(`  ${domain} last 档是大窗口兜底（不重复 paid）`, last.key !== paid.key, `${last.key} vs ${paid.key}`)
-  // pro 若出现在链里，必须在 last
+ // pro 若出现在链里，必须在 last
   const proPositions = chain.filter((c) => isPro(c.key)).map((c) => c.tier)
   t(`  ${domain} 若含 v4-pro 则只在 last`, proPositions.length === 0 || (proPositions.length === 1 && proPositions[0] === 'last'),
     proPositions.join(','))
@@ -305,21 +305,21 @@ t('windowOf(sn-deepseek-v4-1-flash-1017) = 1M（官方）', R.windowOf('raccoon/
 t('windowOf(deepseek-flash) = 1M（官方）', R.windowOf('deepseek-official/deepseek-flash') === 1000000)
 t('windowOf(v4-pro) = 1M（官方）', R.windowOf('deepseek-official/deepseek-v4-pro') === 1000000)
 t('windowOf(未标注 sn-glm-5-3) = 128K（无实测、不套官方，回落保守）', R.windowOf('raccoon/sn-glm-5-3') === 128000)
-// docs\109 实测：sensenova-flash 从保守 128K 上调为实测下限 469000（不再是 128K）
+// 实测：sensenova-flash 从保守 128K 上调为实测下限 469000（不再是 128K）
 t('windowOf(sensenova-flash) = 469000（docs\\109 §2.3 实测下限，不再保守 128K）', R.windowOf('raccoon/sn-sensenova-6-8-flash') === 469000)
-// docs\109 实测：qfmodel 从保守 128K 上调为实测下限 971000
+// 实测：qfmodel 从保守 128K 上调为实测下限 971000
 t('windowOf(qodercn/qfmodel) = 971000（docs\\109 §2.1 实测下限，转发商不套官方）', R.windowOf('qodercn/qfmodel') === 971000)
 // lite 证据不足，维持 128K 不动（不能因兄弟模型 469K 就跟着上调）
 t('windowOf(lite) = 128000（docs\\109 §2.4 仅证实 29,987，维持保守不动）', R.windowOf('raccoon/sn-sensenova-6-8-flash-lite') === 128000)
 t('windowOf(完全未知 route) = 128K（不返回 null）', R.windowOf({ provider: 'x', model: 'y' }) === 128000)
 t('windowOf 支持 override', R.windowOf('workbuddy/deepseek-v4.1-flash', { 'workbuddy/deepseek-v4.1-flash': 200000 }) === 200000)
 t('windowSourceOf(v4.1-flash) = official', R.windowSourceOf('workbuddy/deepseek-v4.1-flash') === 'official')
-// docs\109 三条改成 measured 来源；未标注样本换成仍未实测的 sn-glm-5-3 验证 conservative 回落
+// 三条改成 measured 来源；未标注样本换成仍未实测的 sn-glm-5-3 验证 conservative 回落
 t('windowSourceOf(sn-glm-5-3 未标注) = conservative', R.windowSourceOf('raccoon/sn-glm-5-3') === 'conservative')
 t('窗口表里没有 null（null 会让调用方误判为"无法判定"而放行）',
   Object.values(R.CONTEXT_WINDOW).every((v) => typeof v === 'number' && v > 0))
 
-/* ── 8. fitCheck 三态边界（docs\108 §6 判据 1 的三个具体数字）──── */
+/* ── 8. fitCheck 三态边界（判据 1 的三个具体数字）──── */
 console.log('\n[8] fitCheck 三态边界（1M 窗口：700K safe / 750K compress-first / 900K reject）')
 const V41 = 'workbuddy/deepseek-v4.1-flash'
 t('700000 → safe（700K×1.1=770K ≤ 800K）', R.fitCheck(V41, 700000).state === 'safe', JSON.stringify(R.fitCheck(V41, 700000)))
@@ -333,7 +333,7 @@ t('reject 时 ok=false', R.fitCheck(V41, 900000).ok === false)
 t('返回 required = needed×1.1', Math.abs(R.fitCheck(V41, 700000).required - 770000) < 1, R.fitCheck(V41, 700000).required)
 t('返回 allowed = window×0.8', Math.abs(R.fitCheck(V41, 700000).allowed - 800000) < 1, R.fitCheck(V41, 700000).allowed)
 t('接受 route 对象与 key 字符串两种入参', R.fitCheck({ provider: 'workbuddy', model: 'deepseek-v4.1-flash' }, 700000).state === 'safe')
-// 样本换成仍维持 128K 的 lite（sensenova-flash 已按 docs\109 上调到 469K，装 200K 变 safe，不能当 128K 反例）
+// 样本换成仍维持 128K 的 lite（sensenova-flash 已按 上调到 469K，装 200K 变 safe，不能当 128K 反例）
 t('128K(lite) 模型装 200K → reject', R.fitCheck('raccoon/sn-sensenova-6-8-flash-lite', 200000).state === 'reject')
 t('128K(lite) 模型装 50K → safe', R.fitCheck('raccoon/sn-sensenova-6-8-flash-lite', 50000).state === 'safe')
 t('FIT 常量是 docs\\108 §3 的三个数',
@@ -447,7 +447,7 @@ async function runS25({ members = [], created = true, freeDisabled = false, conf
   const sceneId = 'verify-routes-s25-' + Math.random().toString(36).slice(2, 8)
   const added = await Reg.addScenario({
     id: sceneId, name: 'S2_5 选路验证', kind: 'general',
-    workspace: 'D:\\软件\\DSH\\用户数据', presetId: 'ai-team',
+    workspace: '/tmp/dsh-verify', presetId: 'ai-team',
   })
   if (!added.ok) throw new Error('临时场景注册失败：' + JSON.stringify(added.errors))
   await Reg.updateScenario(sceneId, { teamId: 'team_route_stub' })
@@ -484,7 +484,7 @@ async function runS25({ members = [], created = true, freeDisabled = false, conf
   const posts = calls.filter((c) => c.key === 'POST /api/teams/team_route_stub/members').map((c) => c.body)
   t('建了 3 条成员记录', posts.length === 3, posts.length)
   const byName = Object.fromEntries(posts.map((b) => [b.name, b]))
-  // 新四级：主力(paid)优先，成员选路不再锁死具体 provider/model（qodercn 已被禁）
+ // 新四级：主力(paid)优先，成员选路不再锁死具体 provider/model（qodercn 已被禁）
   t('maker 用 code 链选到过 gate 的主力/可用通道', byName.maker
     && byName.maker.agentProvider && byName.maker.model
     && R.gateRoute({ provider: byName.maker.agentProvider, model: byName.maker.model }, R.resolveConfig({})).allowed,
@@ -535,22 +535,22 @@ console.log('\n[13] 变异反证：neededTokens 必须真的改变结果')
   t('小上下文 → safe 且选免费', small.state === 'safe' && small.tier === 'free', `${small.state}/${small.tier}`)
   t('同一域两种需求给出不同 state（判定不是恒值）', huge.state !== small.state, `${huge.state} vs ${small.state}`)
   t('同一域两种需求给出不同 tier', huge.tier !== small.tier || huge.state === 'reject', `${huge.tier} vs ${small.tier}`)
-  // 逐档推进：需求从 50K 涨到 900K，tier 必须单调不升（不会从 paid 回免费）
+ // 逐档推进：需求从 50K 涨到 900K，tier 必须单调不升（不会从 paid 回免费）
   const ladder = [50000, 500000, 900000].map((n) => R.selectRoute('code', { neededTokens: n }))
   t('需求变大时档位不会倒退回更便宜的档',
     ladder.every((r, i) => i === 0 || r.tier !== 'free' || ladder[i - 1].tier === 'free'),
     ladder.map((r) => `${r.tier}:${r.state}`).join(' → '))
-  // fitCheck 直测：同一 route 不同需求必须给出不同态
+ // fitCheck 直测：同一 route 不同需求必须给出不同态
   const fitLadder = [100000, 750000, 900000].map((n) => R.fitCheck(V41, n).state)
   t('fitCheck 三档需求 → 三种态', new Set(fitLadder).size === 3, fitLadder.join(','))
 }
 
 /* ── 输出 ─────────────────────────────────────────────────────── */
-/* ── 14. latestUsage：当前占用的取值口径（docs\108 §2.1/§2.2）────── */
+/* ── 14. latestUsage：当前占用的取值口径（/§2.2）────── */
 console.log('\n[14] latestUsage：当前占用要取 totalTokens，不是 inputTokens')
 const { latestUsage } = await import('../lib/orchestrator/transcript.mjs')
 {
-  // 真实形状（本团队 architect 会话实测）：inputTokens 2224 但 totalTokens 182207
+ // 真实形状（本团队 architect 会话实测）：inputTokens 2224 但 totalTokens 182207
   const msgs = [
     { seq: 1, role: 'user', text: 'hi', usage: null },
     { seq: 2, role: 'assistant', text: 'a', usage: { inputTokens: 8171, outputTokens: 900, totalTokens: 150298, cacheReadTokens: 141000 } },
@@ -578,12 +578,12 @@ const { latestUsage } = await import('../lib/orchestrator/transcript.mjs')
   t('非数组入参不抛', (() => { try { return latestUsage(null) === null } catch { return false } })())
 }
 
-/* ── 15. op=route-fit 的占用口径：三路优先（docs\109）─────────────
+/* ── 15. op=route-fit 的占用口径：三路优先─────────────
  * 为什么加这一节：Lead（主会话）在 session 日志里**没有 usage**——以前一律「拿不到占用」，
- * 于是面板上整条链没有窗口结论（明明 GUI 圆环里就有 39 万）。现在顺序改为：
- *   ① token-meter 投影 pressureTokens/projectedTokens（口径同 tools\lead-context.mjs）
- *   ② 会话日志 usage.totalTokens（成员会话）
- *   ③ 都没有 → note，**不填 0**（0 会让所有候选判 safe，正好最危险）
+ * 于是面板上整条链没有窗口结论（明明 GUI 圆环里就有 39 万）。现在顺序改为
+ * ① token-meter 投影 pressureTokens/projectedTokens（口径同 tools\lead-context.mjs）
+ * ② 会话日志 usage.totalTokens（成员会话）
+ * ③ 都没有 → note，**不填 0**（0 会让所有候选判 safe，正好最危险）
  */
 console.log('\n[15] op=route-fit 占用口径：投影缓存 → 会话日志 → 明说无数据（不填 0）')
 {
@@ -604,9 +604,9 @@ console.log('\n[15] op=route-fit 占用口径：投影缓存 → 会话日志 �
   t('拿不到占用时写 note、不填 0', /不填 0/.test(SRC) && /currentTokens != null/.test(SRC))
   t('op=routes 也透传 neededTokens', /neededTokens/.test(SRC))
 
-  // —— 真实 Lead 会话实测（只读本机投影缓存；读不到就退化成「不崩」断言，不假报红）——
+ // —— 真实 Lead 会话实测（只读本机投影缓存；读不到就退化成「不崩」断言，不假报红）——
   const { resolveUsage } = await import('../lib/orchestrator/sessionUsage.mjs')
-  const LEAD = process.env.LEAD_SESSION_ID || 'session-6e33f884-2cb3-4fe3-9e26-d86cf97af24d'
+  const LEAD = process.env.LEAD_SESSION_ID || 'session-verify-lead'
   const ALLOWED_FIELDS = new Set(['projectedTokens', 'pressureTokens', 'totalTokens', 'inputTokens+cacheReadTokens'])
   const lead = await resolveUsage(LEAD)
   if (lead.ok) {
@@ -622,7 +622,7 @@ console.log('\n[15] op=route-fit 占用口径：投影缓存 → 会话日志 �
     t('取不到时不编造 usedField', lead.usedField === null)
   }
 
-  // —— 反向：必然不存在的会话必须 null + reason，而不是 0 ——
+ // —— 反向：必然不存在的会话必须 null + reason，而不是 0 ——
   const none = await resolveUsage('session-does-not-exist-for-verify')
   t('不存在的会话：ok=false 且 currentTokens=null（绝不填 0）', none.ok === false && none.currentTokens === null, JSON.stringify({ ok: none.ok, v: none.currentTokens }))
   t('不存在的会话：不编造 usedField/windowSource', none.usedField === null && none.windowSource === null)
@@ -780,12 +780,12 @@ t('candidatePool 里 v4.1-flash 被挡且写明原因', (() => {
     loaded.config.providerMultiplierCap.workbuddy === 0 && loaded.config.providerMultiplierCap.raccoon === 0.3,
     JSON.stringify(loaded.config.providerMultiplierCap))
   t('读回 disabledRoutes 保留', loaded.config.disabledRoutes.includes('x/y'), JSON.stringify(loaded.config.disabledRoutes))
-  // 坏 JSON → 退默认且不抛
+ // 坏 JSON → 退默认且不抛
   fs.writeFileSync(file, '{ 坏掉的 json', 'utf8')
   const bad = await R.loadRouteConfig(dir)
   t('坏 JSON → source=default-after-error（不抛）', bad.source === 'default-after-error' && bad.ok === true, bad.source)
   t('坏 JSON 时仍给可用默认（workbuddy cap=0）', bad.config.providerMultiplierCap.workbuddy === 0)
-  // 带 BOM 的文件也能读
+ // 带 BOM 的文件也能读
   fs.writeFileSync(file, '\ufeff' + JSON.stringify(want), 'utf8')
   const bomRes = await R.loadRouteConfig(dir)
   t('带 BOM 的配置文件能读（顺手挡 BOM）', bomRes.source === 'file' && bomRes.config.providerMultiplierCap.workbuddy === 0, bomRes.source)
@@ -809,12 +809,12 @@ console.log('\n[17] op 层与面板：route-config / provider-toggle / 模型配
   t('provider-toggle 支持 maxMultiplier', /body\.maxMultiplier/.test(idx))
   t('op=run 把盘上配置注入流水线（routeConfig）', /routeConfig: \(await routeConfig\(\)\)\.config/.test(idx))
   t('op=route-fit 用同一份配置算门槛', /cfgForFit/.test(idx))
-  // v2：页签已按 docs\113 中文化精简（9→5），id=models / label=模型
-  // 断言不再锁死旧标签名，改为锁「存在 TabModels 且其页签标签含『模型』」
+ // v2：页签已按 中文化精简（9→5），id=models / label=模型
+ // 断言不再锁死旧标签名，改为锁「存在 TabModels 且其页签标签含『模型』」
   t('面板有模型页签（TabModels + 标签含「模型」）', /TabModels/.test(cli) && /label: '[^']*模型[^']*'/.test(cli))
   t('面板能显示倍率', /x' \+ \(r\.multiplier/.test(cli) || /multiplier/.test(cli))
   t('面板能显示被哪个 cap 挡住', /blockedBy/.test(cli) && /gateReason/.test(cli))
-  // 术语中文化后「设 cap」改为「设上限」，锁语义不锁英文术语
+ // 术语中文化后「设 cap」改为「设上限」，锁语义不锁英文术语
   t('面板能按 provider 设价格上限', /设上限/.test(cli) && /provider-toggle/.test(cli))
   t('面板能改全局上限', /改全局上限/.test(cli))
   t('面板能停用/启用整条通道（层级概念修正，不再是「整厂」）', /停用整条通道/.test(cli) && /启用整条通道/.test(cli) && !/整厂停用|整厂启用/.test(cli))
@@ -822,15 +822,15 @@ console.log('\n[17] op 层与面板：route-config / provider-toggle / 模型配
   t('面板显示指挥模型推荐值（中文化后不锁英文 Lead）', /指挥模型/.test(cli) && /leadRoute/.test(cli))
 }
 
-/* ══ 18. docs\109 窗口真值 + raccoon/deepseek-official 禁用止血 ══════
- * 这一组锁的是本轮改动，每条都对应验收里的一个数字或一条硬约束：
- *   ① needed=394290（Lead 实测占用）下 qfmodel/hy4flash 判 safe、lite 判 reject
- *   ② windowSource=measured（与 official/conservative 区分）
- *   ③ 表值 = 实测最大成功 prompt_tokens − 300 向下取整到 K（证据自洽）
- *   ④ 贴边折扣 ×0.95（conservativeWindow 显式 opt-in，不改 fitCheck 基数）
- *   ⑤ disabledProviders 含 raccoon/deepseek-official → 这两个 provider 的任何
- *      route 都不可入选；变异靶：把 gateRoute 的 provider-disabled 判定改成
- *      恒 false（等于「谁都能过」），下面 18-④/⑤ 会同时报红。
+/* ══ 18. 窗口真值 + raccoon/deepseek-official 禁用止血 ══════
+ * 这一组锁的是本轮改动，每条都对应验收里的一个数字或一条硬约束
+ * ① needed=394290（Lead 实测占用）下 qfmodel/hy4flash 判 safe、lite 判 reject
+ * ② windowSource=measured（与 official/conservative 区分）
+ * ③ 表值 = 实测最大成功 prompt_tokens − 300 向下取整到 K（证据自洽）
+ * ④ 贴边折扣 ×0.95（conservativeWindow 显式 opt-in，不改 fitCheck 基数）
+ * ⑤ disabledProviders 含 raccoon/deepseek-official → 这两个 provider 的任何
+ * route 都不可入选；变异靶：把 gateRoute 的 provider-disabled 判定改成
+ * 恒 false（等于「谁都能过」），下面 18-④/⑤ 会同时报红。
  * 全程只用纯函数 + 读盘配置，不对任何 provider 发真实请求。
  */
 console.log('\n[18] docs\\109 窗口真值（measured/证据/×0.95）+ raccoon/deepseek-official 禁用过滤')
@@ -839,7 +839,7 @@ const QF = 'qodercn/qfmodel'
 const HY = 'workbuddy/hy4flash-free'
 const SEN = 'raccoon/sn-sensenova-6-8-flash'
 const LITE = 'raccoon/sn-sensenova-6-8-flash-lite'
-const NEEDED = 394290 // Lead 实测占用（docs\109 §15 量级）
+const NEEDED = 394290 // Lead 实测占用（上下文 §15 量级）
 
 // —— 18-① needed=394290 的三态判定 ——
 const fitQF = R.fitCheck(QF, NEEDED)
@@ -896,7 +896,7 @@ t('两个 provider 各带 disabledReason（面板要显示为什么停用）',
   JSON.stringify(disk.config.disabledReason))
 
 // —— 硬编码期望（**不看盘上配置内容**）：这两个 provider 必须被禁，且它们的路由必须被挡 ——
-// 上一版这里的 gateRoute 循环是按 disk.disabledProviders 过滤的：
+// 上一版这里的 gateRoute 循环是按 disk.disabledProviders 过滤的
 // 有人把 raccoon 从配置里摘掉时，循环根本不会遍历到 raccoon → 断言「跳过」而不是「失败」，
 // 变异检验（摘掉 deepseek-official）只被 1 条断言抓到。改成硬编码名单后，摘掉任何一项都会
 // 让对应的 blockedBy=provider-disabled 断言直接变红，这才叫锁住。
@@ -914,7 +914,7 @@ for (const p of EXPECT_DISABLED) {
     t(`[hard]   ${p}/${m} → blockedBy=provider-disabled`, g.blockedBy === 'provider-disabled', g.blockedBy)
     t(`[hard]   ${p}/${m} → disabledReason 非空`, typeof g.disabledReason === 'string' && g.disabledReason.length > 0, String(g.disabledReason))
   }
-  // 该 provider 若还出现在任何链的档位上，selectRoute 绝不能把它当「选中项」返回
+ // 该 provider 若还出现在任何链的档位上，selectRoute 绝不能把它当「选中项」返回
   for (const domain of Object.keys(R.ROUTE)) {
     for (const { route } of orderTiersFor(R.ROUTE[domain])) {
       if (String(route.provider).toLowerCase() !== p) continue
@@ -977,12 +977,12 @@ function orderTiersFor(chain) {
   return out
 }
 
-/* ══ 19. chat-open 路由回落（task_mwpxoswsco7y3f 验收③④）═══════════
- * 锁死四件事：
- *   ① disabledProviders 含 raccoon 时，回落结果**绝不能**是 raccoon 系；
- *   ② workbuddy cap=0 时，回落绝不选 x>0 的 workbuddy 项；
- *   ③ routeSource 三态（explicit / config-chain / host-default），回落必带 warning；
- *   ④ 配置链尽而宿主快照也被挡 → source=null（宁可不建会话，不偷偷用禁用通道）。
+/* ══ 19. chat-open 路由回落（验收③④）═══════════
+ * 锁死四件事
+ * ① disabledProviders 含 raccoon 时，回落结果**绝不能**是 raccoon 系；
+ * ② workbuddy cap=0 时，回落绝不选 x>0 的 workbuddy 项；
+ * ③ routeSource 三态（explicit / config-chain / host-default），回落必带 warning；
+ * ④ 配置链尽而宿主快照也被挡 → source=null（宁可不建会话，不偷偷用禁用通道）。
  * 纯函数 + 读盘配置，不发任何真实模型请求。
  */
 console.log('\n[19] chat-open 回落：resolveChatRoute 不许落到被禁用/被 cap 挡的通道')
@@ -996,13 +996,13 @@ console.log('\n[19] chat-open 回落：resolveChatRoute 不许落到被禁用/�
   }
   t('样本非空：链上确实有 raccoon 系 route（否则这组断言无意义）', RACOON_ROUTES.length >= 3, RACOON_ROUTES.join('、'))
 
-  // ① 不带任何参数 → 配置链，且绝不是 raccoon
+ // ① 不带任何参数 → 配置链，且绝不是 raccoon
   const noArg = R.resolveChatRoute({ config: CR })
   t('① 无 provider/model → 有可用回落', noArg.source === 'config-chain' && !!noArg.route, `${noArg.source} ${noArg.route && R.routeKey(noArg.route)}`)
   t('  → 回落结果不是 raccoon 系', String(noArg.route?.provider).toLowerCase() !== 'raccoon', noArg.route && R.routeKey(noArg.route))
   t('  → 选中项本身必过 gate（leadRoute 首档即命中，不假装扫全链）',
     R.gateRoute(noArg.route, R.resolveConfig(CR)).allowed === true, R.routeKey(noArg.route || {}))
-  // 链遍历路径：leadRoute 缺失/不可用时才逐档过 gate，被禁的 raccoon 必须被点名
+ // 链遍历路径：leadRoute 缺失/不可用时才逐档过 gate，被禁的 raccoon 必须被点名
   const WALK_CFG = { ...R.resolveConfig(CR), leadRoute: { provider: 'none-here', model: 'none' } }
   const chainWalk = R.resolveChatRoute({ config: WALK_CFG })
   const walkGated = []
@@ -1010,21 +1010,21 @@ console.log('\n[19] chat-open 回落：resolveChatRoute 不许落到被禁用/�
   t('  → leadRoute 不可用时走链遍历，仍不选 raccoon',
     chainWalk.route && String(chainWalk.route.provider).toLowerCase() !== 'raccoon',
     `${chainWalk.source} ${R.routeKey(chainWalk.route || {})}`)
-  // 与遍历命中顺序无关的严格证明：链上**每一条** raccoon route 单独过 gate 都必须被挡
+ // 与遍历命中顺序无关的严格证明：链上**每一条** raccoon route 单独过 gate 都必须被挡
   for (const k of new Set(RACOON_ROUTES)) {
     const [p, ...rest] = k.split('/')
     const g = R.gateRoute({ provider: p, model: rest.join('/') }, R.resolveConfig(CR))
     t(`  → 链上 raccoon 项 ${k} 单独过 gate 必被挡（provider-disabled）`,
       g.allowed === false && g.blockedBy === 'provider-disabled', `${g.allowed}/${g.blockedBy}`)
   }
-  // 新优先级主力(paid)先命中即返回：可能根本遍历不到被禁的 raccoon（gatedOut 空是合法的）。
-  // 语义判断：chainWalk 选中项必过 gate；gatedOut 里若出现 raccoon 必是 provider-disabled。
+ // 新优先级主力(paid)先命中即返回：可能根本遍历不到被禁的 raccoon（gatedOut 空是合法的）。
+ // 语义判断：chainWalk 选中项必过 gate；gatedOut 里若出现 raccoon 必是 provider-disabled。
   t('  → 链遍历选中项过 gate；gatedOut 里的 raccoon 一律是 provider-disabled',
     R.gateRoute(chainWalk.route, R.resolveConfig(CR)).allowed === true
       && walkGated.every((x) => String(x.provider).toLowerCase() !== 'raccoon' || x.blockedBy === 'provider-disabled'),
     walkGated.map((x) => `${x.provider}/${x.model}<-${x.blockedBy}`).join('、') || '(gatedOut 空=主力先命中)')
 
-  // ①b 宿主快照是 raccoon（修复前的真实 bug 路径）→ 不得采用宿主快照
+ // ①b 宿主快照是 raccoon（修复前的真实 bug 路径）→ 不得采用宿主快照
   const bugPath = R.resolveChatRoute({
     config: CR,
     hostRoute: { provider: 'raccoon', model: 'sn-deepseek-v4-1-flash-1017', reasoningEffort: 'on' },
@@ -1034,7 +1034,7 @@ console.log('\n[19] chat-open 回落：resolveChatRoute 不许落到被禁用/�
     bugPath.route && `${bugPath.source} ${R.routeKey(bugPath.route)}`)
   t('  → source 不是 host-default', bugPath.source !== 'host-default', String(bugPath.source))
 
-  // ② workbuddy cap=0：任何 x>0 的 workbuddy 项都不得成为回落结果
+ // ② workbuddy cap=0：任何 x>0 的 workbuddy 项都不得成为回落结果
   const wbPaid = ['deepseek-v4.1-flash', 'deepseek-v4-pro', 'glm-5.3-flash']
   const capCase = R.resolveChatRoute({
     config: { maxMultiplier: 0.6, providerMultiplierCap: { workbuddy: 0 }, disabledProviders: [], disabledRoutes: [], leadRoute: { provider: 'none', model: 'none' } },
@@ -1052,8 +1052,8 @@ console.log('\n[19] chat-open 回落：resolveChatRoute 不许落到被禁用/�
     return g.allowed === true
   })(), JSON.stringify(R.gateRoute(capCase.route || {}, R.resolveConfig({ providerMultiplierCap: { workbuddy: 0 } }))).slice(0, 160))
 
-  // ③ routeSource 三态
-  // 用例从 qodercn 换成盘上未被整厂禁的 workbuddy/hy4flash-free（qodercn 已禁用，不再是"合规通道"样本）
+ // ③ routeSource 三态
+ // 用例从 qodercn 换成盘上未被整厂禁的 workbuddy/hy4flash-free（qodercn 已禁用，不再是"合规通道"样本）
   const ex = R.resolveChatRoute({ config: CR, explicit: { provider: 'workbuddy', model: 'hy4flash-free', reasoningEffort: 'high' } })
   t('③ 显式传 → source=explicit', ex.source === 'explicit' && R.routeKey(ex.route) === 'workbuddy/hy4flash-free', ex.source)
   t('  → 显式且合规时不带 warning', !ex.warning, String(ex.warning))
@@ -1068,7 +1068,7 @@ console.log('\n[19] chat-open 回落：resolveChatRoute 不许落到被禁用/�
   t('  → 配置链全挡 + 宿主合规 → host-default 且带 warning',
     hostOnly.source === 'host-default' && Boolean(hostOnly.warning) && /宿主/.test(hostOnly.warning),
     `${hostOnly.source} ${R.routeKey(hostOnly.route || {})}`)
-  // ③b 显式传被禁用的通道：P18 用户拍板改硬拦（此前是「采纳 + warning」，被 docs\112 §G2 实测否掉）
+ // ③b 显式传被禁用的通道： 用户拍板改硬拦（此前是「采纳 + warning」，被 G2 实测否掉）
   const exDisabled = R.resolveChatRoute({ config: CR, explicit: { provider: 'raccoon', model: 'sn-deepseek-v4-1-flash-1017' } })
   t('  → 显式传被禁用项：route=null + explicitBlocked=true（硬拦，不再采纳）',
     exDisabled.source === 'explicit' && exDisabled.route === null && exDisabled.explicitBlocked === true,
@@ -1086,7 +1086,7 @@ console.log('\n[19] chat-open 回落：resolveChatRoute 不许落到被禁用/�
   t('  → alternatives 里不含被禁 provider（防自相矛盾）',
     (exDisabled.alternatives || []).every((a) => !CR.disabledProviders.map((x) => String(x).toLowerCase()).includes(String(a.key).split('/')[0].toLowerCase())),
     JSON.stringify((exDisabled.alternatives || []).map((a) => a.key)))
-  // 被 cap 挡住的显式指定同样硬拦（workbuddy cap=0，x0.51 > 0）
+ // 被 cap 挡住的显式指定同样硬拦（workbuddy cap=0，x0.51 > 0）
   const exCap = R.resolveChatRoute({ config: CR, explicit: { provider: 'workbuddy', model: 'deepseek-v4-pro' } })
   t('  → 显式传不被允许的 workbuddy/deepseek-v4-pro（x0.51）同样硬拦',
     exCap.route === null && exCap.explicitBlocked === true
@@ -1094,9 +1094,9 @@ console.log('\n[19] chat-open 回落：resolveChatRoute 不许落到被禁用/�
     JSON.stringify({ r: exCap.route, b: exCap.blocked?.blockedBy, mult: exCap.blocked?.multiplier, cap: exCap.blocked?.cap }))
   t('  → hint 里说清是倍率/cap（不是含糊的「不可用」）',
     /倍率|cap/.test(String(exCap.hint)), String(exCap.hint).slice(0, 160))
-  // 全局 maxMultiplier 也要拦得下来。注意：resolveConfig 恒并 DEFAULT 的
-  // {workbuddy:0}，拿 workbuddy 测全局 cap 只会命中 provider-cap，所以用
-  // 没有 provider 级 cap 的 qoder/gmodel（x0.8）对全局 0.1 测。
+ // 全局 maxMultiplier 也要拦得下来。注意：resolveConfig 恒并 DEFAULT 的
+ // {workbuddy:0}，拿 workbuddy 测全局 cap 只会命中 provider-cap，所以用
+ // 没有 provider 级 cap 的 qoder/gmodel（x0.8）对全局 0.1 测。
   const exGlob = R.resolveChatRoute({
     config: { maxMultiplier: 0.1, providerMultiplierCap: {}, disabledProviders: [], disabledRoutes: [], leadRoute: { provider: 'qodercn', model: 'qfmodel' } },
     explicit: { provider: 'qoder', model: 'gmodel' },
@@ -1104,8 +1104,8 @@ console.log('\n[19] chat-open 回落：resolveChatRoute 不许落到被禁用/�
   t('  → 显式传超全局 maxMultiplier 的项 → blockedBy=global-cap',
     exGlob.explicitBlocked === true && exGlob.blocked?.blockedBy === 'global-cap',
     JSON.stringify({ b: exGlob.blocked?.blockedBy, mult: exGlob.blocked?.multiplier, cap: exGlob.blocked?.cap, src: exGlob.blocked?.capSource }))
-  // disabledRoutes 精确拉黑也拦（provider 未禁、单条被拉黑）
-  // workbuddy 未被整厂禁，才能干净地测"单条拉黑"（用 qodercn 会先命中 provider-disabled）
+ // disabledRoutes 精确拉黑也拦（provider 未禁、单条被拉黑）
+ // workbuddy 未被整厂禁，才能干净地测"单条拉黑"（用 qodercn 会先命中 provider-disabled）
   const exRoute = R.resolveChatRoute({
     config: { ...R.resolveConfig(CR), disabledRoutes: ['workbuddy/hy4flash-free'] },
     explicit: { provider: 'workbuddy', model: 'hy4flash-free' },
@@ -1113,7 +1113,7 @@ console.log('\n[19] chat-open 回落：resolveChatRoute 不许落到被禁用/�
   t('  → 显式传 disabledRoutes 精确拉黑的单条 → route-disabled',
     exRoute.explicitBlocked === true && exRoute.blocked?.blockedBy === 'route-disabled',
     String(exRoute.blocked?.blockedBy))
-  // 验收③：合法通道必须放行，不许误伤
+ // 验收③：合法通道必须放行，不许误伤
   const hy4Key = 'workbuddy/hy4flash-free'
   const t0hy4 = R.gateRoute({ provider: 'workbuddy', model: 'hy4flash-free' }, R.resolveConfig(CR))
   const exHy4 = R.resolveChatRoute({ config: CR, explicit: { provider: 'workbuddy', model: 'hy4flash-free', reasoningEffort: 'high' } })
@@ -1125,7 +1125,7 @@ console.log('\n[19] chat-open 回落：resolveChatRoute 不许落到被禁用/�
   const exLead = R.resolveChatRoute({ config: CR, explicit: { provider: 'workbuddy', model: 'hy4flash-free', reasoningEffort: 'high' } })
   t('  → 合规 leadRoute 同款显式传也放行', exLead.route !== null && exLead.source === 'explicit', String(exLead.source))
 
-  // ④ 链尽 + 宿主快照也超标 → 明确 no-route，不硬选
+ // ④ 链尽 + 宿主快照也超标 → 明确 no-route，不硬选
   const dead = R.resolveChatRoute({
     config: { maxMultiplier: 0.6, providerMultiplierCap: {}, disabledProviders: ['qodercn', 'raccoon', 'workbuddy', 'deepseek-official', 'modlens-workbuddy', 'modlens-zcode', 'modlens-our-free-model', 'deepseek-modlens'], leadRoute: { provider: 'none', model: 'none' } },
     hostRoute: { provider: 'qoder', model: 'ultimate' },
@@ -1134,7 +1134,7 @@ console.log('\n[19] chat-open 回落：resolveChatRoute 不许落到被禁用/�
     dead.source === null && dead.route === null, `${dead.source} ${R.routeKey(dead.route || {})}`)
   t('  → blocked 点明被什么挡住', Boolean(dead.blocked && dead.blocked.blockedBy), JSON.stringify(dead.blocked))
 
-  // ⑤ 集成面：openThread 用 resolveChatRouteOpt（不再直接读宿主快照），index.js 注入盘上配置
+ // ⑤ 集成面：openThread 用 resolveChatRouteOpt（不再直接读宿主快照），index.js 注入盘上配置
   const { readFileSync } = await import('node:fs')
   const chatSrc = readFileSync(new URL('../lib/orchestrator/chat.mjs', import.meta.url), 'utf8')
   const idxSrc = readFileSync(new URL('../lib/index.js', import.meta.url), 'utf8')
@@ -1150,13 +1150,13 @@ console.log('\n[19] chat-open 回落：resolveChatRoute 不许落到被禁用/�
     /op === 'chat-open'[\s\S]{0,600}routeConfig: chatRouteCfg/.test(idxSrc), '见 index.js chat-open 分支')
   t('  → chat-open 回传 routeConfigSource（配置来源可读）', /opened\.routeConfigSource = chatCfgSource/.test(idxSrc))
 
-  // ⑥ P18 硬拦的接线核对：chat.mjs 必须在 registry.create **之前**返回
+ // ⑥ 硬拦的接线核对：chat.mjs 必须在 registry.create **之前**返回
   t('⑥ chat.mjs 有 explicit-blocked 分支', /reason: 'explicit-blocked'/.test(chatSrc))
   t('  → 该分支由 resolved.explicitBlocked 触发', /if \(resolved\.explicitBlocked\)/.test(chatSrc))
   t('  → 分支里带 blocked/alternatives/hint（面板要能直接渲染）',
     /blocked: resolved\.blocked/.test(chatSrc) && /alternatives: resolved\.alternatives/.test(chatSrc) && /hint: resolved\.hint/.test(chatSrc),
     '见 openThread explicit-blocked 分支')
-  // 顺序硬约束：explicitBlocked 的 return 必须出现在 registry.create( 之前，否则等于没拦
+ // 顺序硬约束：explicitBlocked 的 return 必须出现在 registry.create( 之前，否则等于没拦
   const iBlock = chatSrc.indexOf("reason: 'explicit-blocked'")
   const iCreate = chatSrc.indexOf('registry.create(')
   t('  → explicit-blocked 的 return 在 registry.create 之前（真的不建会话）',
@@ -1164,8 +1164,8 @@ console.log('\n[19] chat-open 回落：resolveChatRoute 不许落到被禁用/�
   t('  → 旧的「按显式语义仍然采用」文案已从 routes.mjs 移除',
     !/按显式语义仍然采用/.test(readFileSync(new URL('../lib/orchestrator/routes.mjs', import.meta.url), 'utf8')))
 
-  // ⑦ 运行时集成（不是静态读码）：真调 openThread，桩 registry 盯 create 是否被调。
-  // 验收④点名的两条都在这一组：deepseek-official → create 未调用；hy4flash-free → 正常过。
+ // ⑦ 运行时集成（不是静态读码）：真调 openThread，桩 registry 盯 create 是否被调。
+ // 验收④点名的两条都在这一组：deepseek-official → create 未调用；hy4flash-free → 正常过。
   const ChatI = await import('../lib/orchestrator/chat.mjs')
   const mkCtx = (hostOpts) => {
     const seen = { create: null }
@@ -1215,7 +1215,7 @@ console.log('\n[19] chat-open 回落：resolveChatRoute 不许落到被禁用/�
       r.ok === false && r.reason === 'explicit-blocked' && seen.create === null, `${r.ok}/${r.reason}`)
   }
   {
-    // 同一 sceneId 被拦后不留残骸，补合规请求可建（拦的是通道不是场景）
+ // 同一 sceneId 被拦后不留残骸，补合规请求可建（拦的是通道不是场景）
     const { ctx } = mkCtx({ provider: 'qodercn', model: 'qfmodel' })
     const scene = 'verify-hardblock-4'
     const a = await ChatI.openThread(ctx, { sceneId: scene, provider: 'raccoon', model: 'sn-sensenova-6-8-flash', routeConfig: disk.config })
@@ -1226,11 +1226,11 @@ console.log('\n[19] chat-open 回落：resolveChatRoute 不许落到被禁用/�
   }
 }
 
-/* ══ 20. 层级概念（task_mwq2cmoj4wgyf6）：14 前缀 = 一个插件内的 14 条上游通道 ══
- * 命名/界面层级修正，不改选路逻辑。锁三件事：
- *   ① routes.mjs 导出 PLUGIN_ID / RELAY_ENDPOINT / LANE_OF / LANE_COUNT；
- *   ② LANE_COUNT === 14，且 14 个 key 与 dsh_team_models 实测的 provider 前缀一致；
- *   ③ route-config.json 的 disabledReason 文案点明「插件的一条通道 + 背后上游 + 个人余额」。
+/* ══ 20. 层级概念：14 前缀 = 一个插件内的 14 条上游通道 ══
+ * 命名/界面层级修正，不改选路逻辑。锁三件事
+ * ① routes.mjs 导出 PLUGIN_ID / RELAY_ENDPOINT / LANE_OF / LANE_COUNT；
+ * ② LANE_COUNT === 14，且 14 个 key 与 dsh_team_models 实测的 provider 前缀一致；
+ * ③ route-config.json 的 disabledReason 文案点明「插件的一条通道 + 背后上游 + 个人余额」。
  */
 console.log('\n[20] 层级概念：14 个前缀是 our-free-model 插件内的 14 条上游通道')
 {
@@ -1238,7 +1238,7 @@ console.log('\n[20] 层级概念：14 个前缀是 our-free-model 插件内的 1
   t('RELAY_ENDPOINT 指向 127.0.0.1:18326', /127\.0\.0\.1:18326/.test(String(R.RELAY_ENDPOINT)), String(R.RELAY_ENDPOINT))
   t('LANE_OF 是对象且导出', R.LANE_OF && typeof R.LANE_OF === 'object' && !Array.isArray(R.LANE_OF))
   t('LANE_COUNT = 14（dsh_team_models 去重的 provider 前缀数）', R.LANE_COUNT === 14, `${R.LANE_COUNT} / ${Object.keys(R.LANE_OF || {}).join(',')}`)
-  // 14 个前缀必须是面板实际会展示的那些（与 PROVIDER_PRIORITY 对照，允许 LANE_OF 多含 ollama-local 等）
+ // 14 个前缀必须是面板实际会展示的那些（与 PROVIDER_PRIORITY 对照，允许 LANE_OF 多含 ollama-local 等）
   const LANE_KEYS = Object.keys(R.LANE_OF || {})
   t('LANE_OF 恰含 14 个 key', LANE_KEYS.length === 14, LANE_KEYS.join(','))
   for (const p of ['our-free-model', 'deepseek-official', 'workbuddy', 'raccoon', 'qoder', 'qodercn', 'zcode', 'loomy', 'cline', 'ollama-local',
@@ -1246,7 +1246,7 @@ console.log('\n[20] 层级概念：14 个前缀是 our-free-model 插件内的 1
     t(`  LANE_OF 含 ${p}`, LANE_KEYS.includes(p), LANE_KEYS.join(','))
   }
   t('每条通道都有人读说明（上游服务）', LANE_KEYS.every((k) => typeof R.LANE_OF[k] === 'string' && R.LANE_OF[k].length > 0))
-  // 盘上配置文案：deepseek-official 要点明「插件的一条通道 + 官方 API + 个人余额」
+ // 盘上配置文案：deepseek-official 要点明「插件的一条通道 + 官方 API + 个人余额」
   const whyDs = String(disk.config.disabledReason['deepseek-official'] || '')
   t('route-config deepseek-official 文案点明是插件的一条通道', /our-free-model 插件/.test(whyDs) && /第.*条通道|一条.*通道/.test(whyDs), whyDs)
   t('  → 点明背后接 DeepSeek 官方 API', /DeepSeek 官方 API/.test(whyDs), whyDs)
