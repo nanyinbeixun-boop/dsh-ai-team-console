@@ -1,73 +1,76 @@
-# ---- 依赖与产物 ----
+# 依赖
 node_modules/
-pnpm-lock.yaml
-package-lock.json
-yarn.lock
+.pnpm-store/
 
-# ---- 运行时数据（不进仓库）----
-run/
-_临时/
+# 构建产物
+dist/
+build/
+*.tgz
+
+# 日志
 *.log
+npm-debug.log*
+yarn-error.log*
 
-# ---- 备份与快照 ----
-*.bak
-*.bak-*
-*.orig
-备份/
-
-# ---- 系统与编辑器 ----
-.DS_Store
-Thumbs.db
-desktop.ini
+# 编辑器
 .vscode/
 .idea/
 *.swp
+*.swo
 
-# ---- 本地配置（含密钥/路径，不进仓库）----
-route-config.json
-.env
-.env.local
-*.local.json
+# 系统
+.DS_Store
+Thumbs.db
 
-# ---- 测试临时 ----
-coverage/
-.nyc_output/
-_preview.html
-_t_*.html
-
-# ---- 中间快照与临时导出（不进仓库）----
-*.fixed-*
-*.fixed
-_tmp_*
-assets/_tmp_*
-# ══════════════════════════════════════════════════════════════
-# 敏感信息排除（推送前硬性要求，见 SECURITY.md）
-# ══════════════════════════════════════════════════════════════
-# 含真实公网 IP / 代理节点 / 账号手机号的运维记录（整类排除，不列举具体文件名）
-docs/
+# ── 运行数据（绝不入库）──────────────────────────────────────
+# 插件运行期产生的数据目录：团队库、手册、缓存、备份都在这里。
+# 仓库是公开的，这些文件含本机路径、真实任务内容、会话 id，
+# 一旦提交就等同于把用户工作数据公开。
+data/
 plugin-data/
-*运维*/
-*注册*通道*.md
-*账号盘点*.md
-*实测与真实账号*.md
+备份/
+backups/
+_备份/
 
-# 任何本地网络与凭据配置（注意：不排除 scripts/scan-secrets.mjs 这个防泄露工具本身）
-*credentials*
-*secret.*
-*secrets.json
-*.secret
-*.pem
-*.key
-*.p12
-*.pfx
+# 数据库（含 WAL/SHM 附属文件）
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# 会话与日志转储
+sessions/
+transcripts/
+*.ndjson
+
+# 本机配置覆盖
+.env
 .env.*
-config.local.*
-*.local.*
+*.local
+route-config.local.json
 
-# 代理 / 订阅 / 节点
-*clash*
-*subscription*
-*subscribe*
-# ---- 开发期验证脚本（本地可用，不入库）----
-# ���乤���������ݣ����أ�
+# 临时脚本与草稿
+_临时/
+_scratch/
+*.bak
+*.bak-*
+*.orig
+*.rej
+
+# 修 bug 时留下的文件副本（如 index.js.fixed-task_xxx）
+*.fixed-*
+*.old
+*.copy
+*.tmp
+
+# 运行期探测输出与工具日志（不是源码）
+run/
 .memsearch/
+
+# 本机路由/窗口探测结果（含本机 provider 与倍率快照）
+route-config.json
+capability-probe.json
+*probe*.json
+*probe*.json
+window-*.json
