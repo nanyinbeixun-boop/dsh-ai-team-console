@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * verify-skills.mjs —— op=skills 元数据（task_mwqf7vsj3beu9y）行为锁
+ * verify-skills.mjs —— op=skills 元数据行为锁
  * 临时 userDataRoot + 动态 import，隔离真实 skill 库。
  */
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs'
