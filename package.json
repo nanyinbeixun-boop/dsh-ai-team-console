@@ -16,7 +16,9 @@
     "verify": "node scripts/selfcheck.mjs",
     "test": "node scripts/verify-all.mjs",
     "test:fast": "node scripts/verify-all.mjs --fast",
-    "check-update": "node scripts/check-update.mjs"
+    "check-update": "node scripts/check-update.mjs",
+    "health": "node scripts/health-check.mjs",
+    "health:json": "node scripts/health-check.mjs --json"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": ">=3.18.5"
