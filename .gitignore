@@ -69,3 +69,5 @@ config.local.*
 *subscription*
 *subscribe*
 # ---- 寮�鍙戞湡楠岃瘉鑴氭湰锛堟湰鍦板彲鐢紝涓嶅叆搴擄級----
+# 记忆工具运行数据（本地）
+.memsearch/
