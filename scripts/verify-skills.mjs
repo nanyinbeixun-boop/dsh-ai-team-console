@@ -142,12 +142,35 @@ t('sections 4 条（排除 purpose 与启用方式）', sum && sum.sections.leng
 t('count 为实际条目数（4/1/3/1）', sum && JSON.stringify(sum.sections.map((s) => s.count)) === JSON.stringify([4, 1, 3, 1]), sum && JSON.stringify(sum.sections.map((s) => s.count)))
 t('items 只给前 3 条', sum && sum.sections.every((s) => s.items.length <= 3), sum && JSON.stringify(sum.sections.map((s) => s.items.length)))
 t('最容易错的前 3 条含坑一', sum && (sum.sections.find((s) => s.title.indexOf('最容易错') >= 0) || { items: [] }).items.some((x) => /坑一/.test(x)))
-t('fullPreview 加长到 1500', typeof a.fullPreview === 'string' && a.fullPreview.length > 300, a.fullPreview && String(a.fullPreview.length))
+t('fullPreview 返回全文（不再截 1500）', typeof a.fullPreview === 'string' && a.fullPreview.length > 300, a.fullPreview && String(a.fullPreview.length))
 t('解析失败返回 null（无 ## 节）', Evolve.parseSkillSummary('纯文本没有标题') === null)
 t('解析失败返回 null（空值）', Evolve.parseSkillSummary(null) === null)
-t('前端三段式标题齐全', /这个技能管什么/.test(cli) && /内容概览/.test(cli) && /最容易错的（前 3 条预览）/.test(cli))
+// 方案B（task_mwr5w5z541f05i）：卡面改「中文场景名 + 用途 + 两行制踩坑 + 折叠技术层」。
+// 断言跟着新结构走，并加锁 humanItems 消费与诚实截断提示——比原来只查文案更有意义。
+t('前端卡面用中文场景名（不再直接摆文件名）',
+  /sceneName/.test(cli) && /sm\.scene/.test(cli) && /\.replace\(\/-onboarding/.test(cli))
+t('前端消费 humanItems（两行制 do/why）',
+  /humanItems/.test(cli) && /x\.do/.test(cli) && /x\.why/.test(cli))
+t('前端 humanItems 为 null 时退化并标「工程记录」',
+  /工程记录/.test(cli) && /dangerHuman \|\|/.test(cli))
+t('前端技术层折叠且标「给 AI 看的技术细节」',
+  /给 AI 看的技术细节/.test(cli) && /'details'/.test(cli) && /atc-mini atc-code/.test(cli))
+t('前端消费 fullPreviewTruncated（不假装完整）',
+  /fullPreviewTruncated/.test(cli) && /截断版/.test(cli))
 t('前端 summary 缺失退化为预览', /it && it\.summary/.test(cli) && /full\.slice\(0, 300\)/.test(cli))
-t('前端 details 展开全文', /'展开全文'/.test(cli) && /atc-mini atc-code/.test(cli))
+
+console.log('\n[8] fullPreview 全文覆盖（task_mwr5w56n3zbo5y）')
+const tailMark = 'END_MARKER_末尾标记_abcdef'
+const bigMd = '# 大技能\n\n' + '甲'.repeat(5000) + '\n\n' + tailMark + '\n'
+writeFileSync(join(skillDir, 'big-skill.md'), bigMd, 'utf8')
+const bigRes = await Evolve.listSkills()
+const big = (bigRes.active || []).find((x) => x.file === 'big-skill.md')
+t('fullPreview 覆盖率 ≥98%（5000字源文件）', big && big.fullPreview.length >= 4900, big && String(big.fullPreview.length))
+t('fullPreview 含末尾标记（真读全非中间截断）', big && big.fullPreview.indexOf(tailMark) >= 0)
+t('fullPreviewTruncated=false（未超200KB）', big && big.fullPreviewTruncated === false)
+t('阴性对照：preview 仍约300字（没被误改）', big && big.preview.length >= 290 && big.preview.length <= 301, big && String(big.preview.length))
+t('preview 不含末尾标记（确认preview仍只取开头）', big && big.preview.indexOf(tailMark) < 0)
+t('FULL_PREVIEW_MAX=200KB 已导出', Evolve.FULL_PREVIEW_MAX === 200 * 1024, String(Evolve.FULL_PREVIEW_MAX))
 
 console.log(`\n结果：pass=${pass} fail=${fail}`)
 if (fail === 0) console.log('全部通过：op=skills 元数据齐全、读失败隔离、结构化摘要与前端展示一致。\n')
