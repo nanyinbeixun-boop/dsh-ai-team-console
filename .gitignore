@@ -69,9 +69,3 @@ config.local.*
 *subscription*
 *subscribe*
 # ---- 开发期验证脚本（本地可用，不入库）----
-scripts/verify-*.mjs
-scripts/probe-*.mjs
-scripts/selftest-*.mjs
-scripts/patch-cwd.mjs
-scripts/check-free-routes.mjs
-scripts/clean-dev-notes.mjs

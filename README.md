@@ -401,22 +401,71 @@ ctx.slots.inject('main', () => ctx.slots.register({
    **不要拿它当本插件修复的失败判据**——修复 B 的判据是「跑一次流水线后成员状态 idle→running、
    任务挂上 currentTaskId」。
 
-## 自检
+## 验证
 
-| 脚本 | 用途 | 期望 |
-|---|---|---|
-| `scripts/selfcheck.mjs` | 插件可加载性：BOM / JSON 合法 / 入口存在 / client inject 声明 / lib 真解析 / op 对表 / 挂载块 / junction | **全部 8 项通过** |
-| `scripts/verify-advanced-orchestration.mjs` | 先进编排落地自证：工件 schema / S6b 门 / 复杂度三档 / 四要素回执 + 成本记账，共 42 条断言 | **全部通过（exit 0）** |
+三条命令覆盖从「能不能加载」到「行为对不对」：
 
 ```bash
-npm run verify        # 等价于 node scripts/selfcheck.mjs
+npm run verify        # 可加载性自检（8 项，秒级）
+npm test              # 全部验证脚本（10 个套件，约 3 秒）
+npm run test:fast     # 跳过慢套件
+node scripts/verify-all.mjs routes   # 只跑名字含 routes 的
+node scripts/verify-all.mjs --json   # 机器可读，接 CI
 ```
 
-自检覆盖「能不能被加载」；运行时语义（任务真的派发了吗、聊天真的回话了吗）不在这 8 项里。
+### 可加载性自检（`npm run verify`）
 
-> **开发期验证脚本不在本仓库**。19 个 `verify-*` / `probe-*` 脚本（断言总数 1000+，覆盖选路、团队同步、
-> 技能蒸馏、目录浏览、双主题等）属于开发过程产物，保留在维护者的本地归档目录，不随仓库分发。
-> 它们不是使用者安装后需要跑的东西；需要时从那里取回。
+挡住「改完之后侧边栏入口整片消失」这类事故——8 项全过再重启：
+
+| # | 检查项 |
+|---|---|
+| 1 | 全库无 UTF-8 BOM（BOM 会让 `JSON.parse` 直接失败，插件被宿主禁用） |
+| 2 | `package.json` 是合法 JSON |
+| 3 | `main` / `exports` / `dsh.bundle.patch` 指向的文件都存在 |
+| 4 | `dsh.client.inject` 与 client 半侧实际依赖一致 |
+| 5 | `lib/` 下每个模块真解析（`node --check`，不是只看文件非空） |
+| 6 | client 调用的每个 op 在服务端都有分支 |
+| 7 | profile 的 `cordis.patch.yml` 里有挂载块 |
+| 8 | profile 的 `node_modules` 里有本插件 |
+
+profile 目录可覆盖：`DSH_PROFILE_DIR` 或 `DSH_HOME`。
+
+### 行为验证（10 个套件）
+
+| 套件 | 覆盖 |
+|---|---|
+| `verify-routes` | 四级选路 / 上下文窗口适配 / 倍率门槛 / 降级链 |
+| `verify-chat-feedback` | 被禁通道可见且标注原因 + 可点替代 |
+| `verify-p16-team-mode` | 团队健康三态 / 投递必判真假 / 兜底指令 |
+| `verify-capability-domains` | 六个能力域单一命中 / 无跨域误判 |
+| `verify-presets` | 会话预设读取 / 启停 / 调序，真实配置零副作用 |
+| `verify-team-sync` | 会话建的团队同步为工作项 / 幂等 |
+| `verify-dir-list` | 目录浏览 / 盘符发现 / source 标记 |
+| `verify-skills` | 技能元数据完整 / 读失败隔离 |
+| `verify-evolve-config` | 蒸馏门槛可配置 / 非法值回落 |
+| `verify-model-tab` | 模型页信息架构 / 无开发者术语泄漏 |
+
+`verify-all.mjs` 汇总输出：
+
+```
+[PASS] verify-capability-domains.mjs    142ms  全部通过：6 个真实岗位…
+[PASS] verify-routes.mjs                198ms  全部通过：成员模型路由…
+--------------------------------------------------------------
+  10/10 通过   总耗时 2.5s
+```
+
+### 安全与更新
+
+| 脚本 | 用途 |
+|---|---|
+| `scripts/scan-secrets.mjs` | 13 类敏感模式扫描；`--staged` 供 pre-commit 用，命中 exit 1 |
+| `scripts/check-update.mjs` | git 远程 / npm registry 双源查新版，只读不改文件 |
+
+启用提交前扫描：
+
+```bash
+git config core.hooksPath .githooks
+```
 
 
 ## 版本记录

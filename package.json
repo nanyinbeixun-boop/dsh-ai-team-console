@@ -14,7 +14,8 @@
   },
   "scripts": {
     "verify": "node scripts/selfcheck.mjs",
-    "verify-advanced": "node scripts/verify-advanced-orchestration.mjs",
+    "test": "node scripts/verify-all.mjs",
+    "test:fast": "node scripts/verify-all.mjs --fast",
     "check-update": "node scripts/check-update.mjs"
   },
   "dependencies": {
@@ -36,6 +37,7 @@
   "files": [
     "lib",
     "dsh",
+    "scripts",
     "assets/icon-*.svg",
     "assets/icon-*.png",
     "README.md",
