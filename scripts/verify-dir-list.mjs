@@ -16,7 +16,7 @@ function t(name, cond, extra) {
 }
 
 console.log('\n[1] normalizeDir 路径规范化')
-t('去尾斜杠', Detect.normalizeDir('D:\\软件\\DSH\\') === 'D:\\软件\\DSH', Detect.normalizeDir('D:\\软件\\DSH\\'))
+t('去尾斜杠', Detect.normalizeDir('C:\\some\\path\\') === 'C:\\some\\path', Detect.normalizeDir('C:\\some\\path\\'))
 t('盘符根保留单斜杠', Detect.normalizeDir('D:\\') === 'D:\\', Detect.normalizeDir('D:\\'))
 t('空/非字符串返回 null', Detect.normalizeDir('') === null && Detect.normalizeDir(null) === null)
 t('相对路径解析为绝对', /^[A-Za-z]:[\\/]/.test(Detect.normalizeDir('.') || ''))
@@ -81,7 +81,7 @@ console.log('\n[3.5] roots 来源标记 source（default/drive/user，前端据�
 t('每个根都带 source 字段且取值合法', sug.every((r) => ['default', 'drive', 'user'].includes(r.source)), sug.map((r) => `${r.path}:${r.source}`).join(' | '))
 // 默认三个根 source=default（在默认配置下）
 const defSug = await Detect.suggestWorkspaces({ userDataRoot: 'Z:\\无配置' })
-for (const d of ['D:\\代码', 'D:\\软件\\DSH\\用户数据', 'D:\\资料']) {
+for (const d of Detect.defaultRoots().map((r) => r.path)) {
   const hit = defSug.find((r) => Detect.normalizeDir(r.path) === Detect.normalizeDir(d))
   if (hit) t(`默认根 ${d} source=default`, hit.source === 'default', JSON.stringify(hit))
 }
@@ -107,9 +107,10 @@ t('盘符根 source=drive', defSug.filter((r) => /^[A-Za-z]:\\$/.test(r.path)).e
       defaults.every((d) => userSug.some((r) => Detect.normalizeDir(r.path) === d)),
       `默认=${JSON.stringify(defaults)} 实际=${JSON.stringify(userSug.map((r) => r.path))}`)
  // 同路径既是默认又是用户（如把默认根写进配置）→ source 应为 user（用户更具体）
-    await fsProm.writeFile(cfgFile, JSON.stringify({ roots: [{ path: 'D:\\代码', label: '我把默认根也加了' }] }), 'utf8')
+    const firstDefault = Detect.defaultRoots()[0].path
+    await fsProm.writeFile(cfgFile, JSON.stringify({ roots: [{ path: firstDefault, label: '把默认根加进用户配置' }] }), 'utf8')
     const clashSug = await Detect.suggestWorkspaces({ userDataRoot: tmpRoot })
-    const clashHit = clashSug.filter((r) => Detect.normalizeDir(r.path) === Detect.normalizeDir('D:\\代码'))
+    const clashHit = clashSug.filter((r) => Detect.normalizeDir(r.path) === Detect.normalizeDir(firstDefault))
     t('同路径默认+用户冲突 → source=user（user>default）', clashHit.length === 1 && clashHit[0].source === 'user', JSON.stringify(clashHit))
     t('strongerSource 优先级函数正确', Detect.strongerSource('user', 'default') === 'user'
       && Detect.strongerSource('default', 'drive') === 'default' && Detect.strongerSource('drive', 'user') === 'user')
