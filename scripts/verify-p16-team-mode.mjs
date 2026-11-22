@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /**
- * verify-p16-team-mode.mjs —— 「团队模式退化」修复的回归验证（P16）
+ * verify-p16-team-mode.mjs —— 「团队模式退化」修复的回归验证
  *
- * 由来：docs\99-团队模式根因规格.md 修复 B。规格断点②指出，面板开团流程
+ * 由来：-团队模式根因规格.md 修复 B。规格断点②指出，面板开团流程
  * 从不 spawn 成员、S6 只调 dispatch 却从不把 brief 投进成员会话，于是
  * 「已派发」可以在一件活都没送出去的情况下报通过。
  *
- * 本脚本锁死三件事，任何一项退化都会红：
- *   1. 团队健康判定：三态（ok / unbound / stale-lineage）与 retired 剔除；
- *   2. 投递判定：没会话、没 member、没 subagents、没 Lead 句柄、
- *      belongs to another parent session —— 五种情况必须 ok:false 且带可执行 fix；
- *   3. 正常投递：ok:true 且 brief 里真的带 teamId/taskId/回执要求。
+ * 本脚本锁死三件事，任何一项退化都会红
+ * 1. 团队健康判定：三态（ok / unbound / stale-lineage）与 retired 剔除；
+ * 2. 投递判定：没会话、没 member、没 subagents、没 Lead 句柄、
+ * belongs to another parent session —— 五种情况必须 ok:false 且带可执行 fix；
+ * 3. 正常投递：ok:true 且 brief 里真的带 teamId/taskId/回执要求。
  *
  * 用法：node scripts\verify-p16-team-mode.mjs
  * 退出码：0 = 全部通过；1 = 有断言失败。纯本地，不碰 sidecar，不建团队。
@@ -80,8 +80,8 @@ const ctxStale = {
 r = await P.deliverBrief(ctxStale, 'team_x', { id: 't1', subject: 's' }, staleMember)
 t('belongs to another parent session → ok:false', r.ok === false)
 t('  → 错误被识别并透传', /belongs to another parent session/.test(r.detail), r.detail)
-// docs\107 §5（v2 订正）：修复路径改为「update 一步重建」，不再是 retire+spawn。
-// 实测 retire 后重新 spawn 的成员 id 不变（docs\107 §5 实测表），所以「保 id」不是选 update 的理由，
+// （v2 订正）：修复路径改为「update 一步重建」，不再是 retire+spawn。
+// 实测 retire 后重新 spawn 的成员 id 不变（实测表），所以「保 id」不是选 update 的理由，
 // 真正的理由是少一步。断言跟着规格改，不是把断言改成永远成立。
 t('  → fix 指向 rebuildCommand + dispatchCommand 两步',
   /rebuildCommand/.test(r.fix || '') && /dispatchCommand/.test(r.fix || ''), r.fix)
@@ -164,7 +164,7 @@ function stubFetch(routes) {
       const errBody = JSON.stringify({ error: `not stubbed: ${key}` })
       return { ok: false, status: 404, json: async () => JSON.parse(errBody), text: async () => errBody }
     }
-    // jpost 走 r.text() + JSON.parse，jget 走 r.json()；两个方法都得给
+ // jpost 走 r.text + JSON.parse，jget 走 r.json；两个方法都得给
     const bodyText = JSON.stringify(hit)
     return { ok: true, status: 200, json: async () => JSON.parse(bodyText), text: async () => bodyText }
   }
@@ -173,7 +173,7 @@ function stubFetch(routes) {
 
 const stubBase = {
   'GET /api/teams/team_stub/members': { items: [{ id: 'm1', name: 'maker', role: '干活', status: 'running', agentSessionId: 'sid-ok' }] },
-  'GET /api/teams': { items: [{ id: 'team_stub', maxMembers: 8, workspace: 'D:\\x' }] },
+  'GET /api/teams': { items: [{ id: 'team_stub', maxMembers: 8, workspace: '/tmp/dsh-verify' }] },
   'POST /api/messages': { message: { id: 'msg-1' } },
   'GET /api/tasks': { items: [{ id: 't_stub', status: 'running' }] },
 }
@@ -190,7 +190,7 @@ async function runS6WithStub(routes, hostCtx) {
     id: sceneId,
     name: 'S6 桩验证',
     kind: 'general',
-    workspace: 'D:\\软件\\DSH\\用户数据',
+    workspace: '/tmp/dsh-verify',
     presetId: 'ai-team',
   })
   if (!added.ok) throw new Error('临时场景注册失败：' + JSON.stringify(added.errors))
@@ -244,7 +244,7 @@ async function runS6WithStub(routes, hostCtx) {
 }
 
 // ④ stale-lineage 走完整个 S6：兜底指令必须落到 data.delivery 里，且 S6 仍 ok:false
-//    （docs\107 §6 判据 3 的整步版——只测 deliverBrief 不够，纪律在 S6 的返回值上）
+// （判据 3 的整步版——只测 deliverBrief 不够，纪律在 S6 的返回值上）
 {
   const { out, s6 } = await runS6WithStub({
     ...stubBase,
@@ -269,14 +269,14 @@ async function runS6WithStub(routes, hostCtx) {
   t('   → data.delivery.rebuildRequired=true', delivery.rebuildRequired === true)
 }
 
-/* ── 8. 投递兜底：两个失败分支要给可粘贴指令（docs\107） ──────────
+/* ── 8. 投递兜底：两个失败分支要给可粘贴指令 ──────────
  * 纪律落点：生成指令 ≠ 投递成功。所以这一组每条都以「ok 必须仍是 false」打头，
  * 再查指令内容。如果哪天有人为了让用户少点一次而把 ok 翻成 true，
- * 这里的第一个断言立刻红——那正是 docs\107 §6 判据 3。
+ * 这里的第一个断言立刻红——那正是 判据 3。
  */
 console.log('\n[8] 投递兜底：失败分支产出可粘贴的 dsh_team_task 指令（docs\\107）')
 
-const realTeam = 'team_mwpsxeul9lagp'
+const realTeam = 'team_verify_a'
 const realTask = {
   id: 'task_real_1',
   subject: '带引号与反斜杠的题目："验证" docs\\107 的转义',
@@ -347,7 +347,7 @@ const realMember = { id: 'm_mwpsyctmcdeda', name: 'maker', agentSessionId: 'sid-
 // ③ 纯函数直测：转义与取值纪律由 buildDispatchCommand 独担保
 {
   const { command, payload } = P.buildDispatchCommand(realTeam, realTask, realMember)
-  // 指令里的 JSON 片段必须能被 JSON.parse 回等价对象——这是「粘一次就完整」的硬判据
+ // 指令里的 JSON 片段必须能被 JSON.parse 回等价对象——这是「粘一次就完整」的硬判据
   const m = command.match(/subject: (".*?"), assignee: /)
   t('buildDispatchCommand：subject 可 JSON.parse 回原值', Boolean(m) && JSON.parse(m[1]) === realTask.subject)
   const a = command.match(/acceptance: (".*?") \}\)$/)
@@ -384,6 +384,6 @@ const realMember = { id: 'm_mwpsyctmcdeda', name: 'maker', agentSessionId: 'sid-
 }
 
 console.log(`\n结果：pass=${pass} fail=${fail}`)
-if (fail === 0) console.log('全部通过：团队模式修复（P16）行为符合 docs\\99 规格修复 B。\n')
+if (fail === 0) console.log('全部通过：团队模式修复（团队模式）行为符合 docs\\99 规格修复 B。\n')
 else console.log('有断言失败 —— 团队模式修复退化，先修这些。\n')
 process.exit(fail === 0 ? 0 : 1)
