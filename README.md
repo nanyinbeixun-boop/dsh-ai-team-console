@@ -430,7 +430,7 @@ node scripts/verify-all.mjs --json   # 机器可读，接 CI
 
 profile 目录可覆盖：`DSH_PROFILE_DIR` 或 `DSH_HOME`。
 
-### 行为验证（10 个套件）
+### 行为验证（11 个套件）
 
 | 套件 | 覆盖 |
 |---|---|
@@ -444,6 +444,7 @@ profile 目录可覆盖：`DSH_PROFILE_DIR` 或 `DSH_HOME`。
 | `verify-skills` | 技能元数据完整 / 读失败隔离 |
 | `verify-evolve-config` | 蒸馏门槛可配置 / 非法值回落 |
 | `verify-model-tab` | 模型页信息架构 / 无开发者术语泄漏 |
+| `verify-host` | 宿主适配层：空 ctx 降级 / 调用契约稳定 / 失败分支 |
 
 `verify-all.mjs` 汇总输出：
 
@@ -451,8 +452,75 @@ profile 目录可覆盖：`DSH_PROFILE_DIR` 或 `DSH_HOME`。
 [PASS] verify-capability-domains.mjs    142ms  全部通过：6 个真实岗位…
 [PASS] verify-routes.mjs                198ms  全部通过：成员模型路由…
 --------------------------------------------------------------
-  10/10 通过   总耗时 2.5s
+  11/11 通过   总耗时 2.9s
 ```
+
+## 宿主适配层
+
+DSH 的 `ctx.slots` / `ctx.agents` / `subagents` / `agent.followup` 都不是公开
+稳定 API。宿主升级时签名或行为会变——如果 30 多处调用点散在各模块里，每次
+升级都要全库排查。
+
+`lib/orchestrator/host.mjs` 把它们收成一处：
+
+| 导出 | 作用 | 宿主缺失时 |
+|---|---|---|
+| `capabilities(ctx)` | 一次性探测所有能力 | 返回全 false |
+| `healthReport(ctx)` | 人可读的能力报告 | 标出缺哪几项 |
+| `listAgents` / `getAgent` / `createAgent` | 会话注册表 | 返回空数组 / null / `{ok:false}` |
+| `followup(agent, msg, timeout)` | 投递一条消息 | `{ok:false, error}` |
+| `clearInbox(agent)` | 清 inbox 残留 | false |
+| `sendToMember(ctx, lead, sid, content, opts)` | 团队投递（S6 落点） | `{ok:false, reason:'no-api'\|'threw'}` |
+| `registerSlot` / `registerEffect` / `registerWebRoute` | UI 与 HTTP 挂载 | false（跳过挂载不崩） |
+| `modelSelection(ctx)` | 自动开 Lead 会话用 | null |
+
+**设计原则**：每个能力先探测再调用；失败返回结构化结果而非抛裸异常；
+只做形状适配，不做业务判断。
+
+**升级时只改这一个文件**——其余模块通过稳定签名调用。
+
+> 例外：`leadProbe.mjs` 刻意直连宿主。它的职责就是验证 `agents.get(id) !== sender`
+> 这类内部校验的真实行为，包一层就测不准了。
+
+## 健康巡检
+
+一条命令回答「这个插件现在还能正常工作吗」：
+
+```bash
+npm run health          # 人类可读
+npm run health:json     # 机器可读，接 CI 或监控
+node scripts/health-check.mjs --offline   # 跳过联网检查
+```
+
+四类检查：
+
+| 类别 | 检查项 |
+|---|---|
+| **宿主适配层** | 导出完整性 / 空 ctx 降级 / 有没有绕过适配层的直连 |
+| **本地完整性** | profile 文件 / 数据目录 / 内置预设位置 |
+| **上游版本** | 本地 HEAD 与远程是否一致 |
+| **sidecar** | 可达性（含耗时） / 数据结构字段漂移 |
+
+输出示例：
+
+```
+[宿主适配层]
+  OK   导出完整性         12 个能力函数齐全
+  OK   空 ctx 降级        空 ctx 下全部能力返回 false（不抛错）
+  OK   绕过检查          0 处直连
+[sidecar]
+  OK   可达性            HTTP 200（56ms）@ http://127.0.0.1:4317
+  OK   数据结构          teams 数组，3 条
+  OK   字段漂移          依赖字段齐全
+----------------------------------------------------------------
+  8 正常   2 警告   0 错误
+```
+
+**退出码**：全正常 0 / 有警告 1 / 有错误 2——可以直接接进 CI。
+
+**字段漂移检测**是重点：sidecar 返回的 `teams` 里如果缺了 `id`/`name`
+这类必填字段，巡检会报 error；缺可选字段报 warn。宿主或 sidecar 升级后
+改字段名，这里第一时间能看出来，而不是等到面板白屏。
 
 ### 安全与更新
 
