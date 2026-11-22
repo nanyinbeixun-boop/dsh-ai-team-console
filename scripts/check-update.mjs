@@ -2,16 +2,16 @@
 /**
  * dsh-ai-team-console 更新检查
  *
- * 无第三方依赖，纯 Node 内置模块。两种检测源，按可用性自动选择：
+ * 无第三方依赖，纯 Node 内置模块。两种检测源，按可用性自动选择
  * 1) git 远程：仓库配置了 remote 时，`git fetch`（只读，不改工作区）后比较 HEAD 与上游
- *   2) npm registry：包名可解析时，查 https://registry.npmjs.org/<name>/latest
+ * 2) npm registry：包名可解析时，查 https://registry.npmjs.org/<name>/latest
  *
  * 只做检测与提示，**不自动拉取、不修改任何文件**——更新动作留给用户执行。
  *
- * 用法：
- * node scripts/check-update.mjs            # 人类可读输出，有更新时 exit 0
- * node scripts/check-update.mjs --json     # 机器可读 JSON
- * node scripts/check-update.mjs --strict   # 有更新时 exit 1（给 CI / 脚本用）
+ * 用法
+ * node scripts/check-update.mjs # 人类可读输出，有更新时 exit 0
+ * node scripts/check-update.mjs --json # 机器可读 JSON
+ * node scripts/check-update.mjs --strict # 有更新时 exit 1（给 CI / 脚本用）
  */
 import { execFile } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
@@ -35,7 +35,7 @@ function cmpSemver(a, b) {
   if (a1 !== b1) return a1 > b1 ? 1 : -1
   if (a2 !== b2) return a2 > b2 ? 1 : -1
   if (a3 !== b3) return a3 > b3 ? 1 : -1
-  // 预发布版本低于同版本正式版
+ // 预发布版本低于同版本正式版
   const aPre = String(a).includes('-'), bPre = String(b).includes('-')
   if (aPre !== bPre) return aPre ? -1 : 1
   return 0
@@ -68,7 +68,7 @@ async function checkGit() {
     const localHead = await git(['rev-parse', 'HEAD'])
     const localShort = localHead.slice(0, 8)
 
-    // 只做只读 fetch，不改工作区
+ // 只做只读 fetch，不改工作区
     try {
       await execFileAsync('git', ['fetch', '--quiet', 'origin', branch], { cwd: ROOT, timeout: 30000 })
     } catch (e) {
