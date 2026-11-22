@@ -35,9 +35,9 @@ function t(name, cond, extra) {
 
 /* ── 真实成员 fixture（sidecar 2026-11-21 实测 name+role，含 retired 剔除）── */
 const MEMBERS = [
-  { id: 'm_mwpsy0tba7kl7', name: 'architect', role: '产品经理（PM）：收集需求，输出原型，规划功能，协调各方，把控需求范围与版本排期', agentPreset: 'standard', status: 'idle' },
-  { id: 'm_mwpsy16kba4h7', name: 'auditor', role: '测试（QA）：编写测试用例，功能验证，发现并提交 bug，回归验证，保障交付质量', agentPreset: 'standard', status: 'idle' },
-  { id: 'm_mwpsyctmcdeda', name: 'maker', role: '后端开发：设计业务逻辑、接口、数据库，提供数据服务，保障后台功能稳定', agentPreset: 'standard', status: 'idle' },
+  { id: 'm_TESTID', name: 'architect', role: '产品经理（PM）：收集需求，输出原型，规划功能，协调各方，把控需求范围与版本排期', agentPreset: 'standard', status: 'idle' },
+  { id: 'm_TESTID', name: 'auditor', role: '测试（QA）：编写测试用例，功能验证，发现并提交 bug，回归验证，保障交付质量', agentPreset: 'standard', status: 'idle' },
+  { id: 'm_TESTID', name: 'maker', role: '后端开发：设计业务逻辑、接口、数据库，提供数据服务，保障后台功能稳定', agentPreset: 'standard', status: 'idle' },
   { id: 'm_mwq6thz911lcn', name: 'ui-designer', role: 'UI 设计师：设计软件界面、图标、配色，输出视觉稿，保证页面美观统一', agentPreset: 'standard', status: 'idle' },
   { id: 'm_mwq6tiey24aw4', name: 'frontend-dev', role: '前端开发：实现页面界面与交互效果，适配多端，对接后端接口，处理页面兼容性', agentPreset: 'standard', status: 'idle' },
   { id: 'm_mwq6ttj24ln41', name: 'devops', role: '运维 / DevOps：搭建部署环境，上线发布，服务器维护，监控线上服务，处理环境故障', agentPreset: 'standard', status: 'running' },
