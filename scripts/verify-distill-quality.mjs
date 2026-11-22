@@ -93,9 +93,16 @@ const src = readFileSync(new URL('../lib/orchestrator/evolve.mjs', import.meta.u
 t('Markdown 结构切分代码在（##/列表项/300 兜底）', /hasStructure/.test(src) && /item\.length > 300/.test(src) && /SECTION_BUCKET/.test(src))
 t('动作性判据在', /isActionable/.test(src) && /ACTION_RE/.test(src) && /CAUSE_RE/.test(src))
 t('句内语义标记切分在（坑：/注意：INLINE_SEP）', /INLINE_SEP/.test(src) && /PITFALL_MARK/.test(src) && /forceKey/.test(src))
+t('P3：recipes 桶与 STRONG 判据在', /buckets\.recipes/.test(src) && /const STRONG/.test(src) && /isRecipe/.test(src))
+t('P3：renderSkill 有「怎么做事」节置前', /## 怎么做事（可复用步骤）/.test(src) && src.indexOf('## 怎么做事') < src.indexOf('## 最容易错'))
+t('P3b：renderSkill 分 good/fair 两档（其他经验摘要）',
+  /## 其他经验摘要/.test(src) && /x\.quality === 'fair'/.test(src) && /x\.quality !== 'fair' && x\.quality !== 'poor'/.test(src))
+t('P3b：quality 打分函数在（good/fair/poor）', /function gradeRecipe/.test(src) && /score >= 5 \? 'good'/.test(src))
 // 路 B：handoff 规范引导成员写「坑：」
 const pipeSrc = readFileSync(new URL('../lib/orchestrator/pipeline.mjs', import.meta.url), 'utf8')
 t('路B：任务 brief 的 summary 规范含「坑：<一句话>」要求', /坑：<一句话>/.test(pipeSrc))
+t('P3b：summary 规范含「做法：<标题> + 1) 一步一动作 + 不要以版本号开头」',
+  /可复用做法/.test(pipeSrc) && /做法：<这件事叫什么>/.test(pipeSrc) && /不要以版本号开头|一步一个动作/.test(pipeSrc))
 
 console.log('\n[4] 真实 63 条 handoff（唯一可信验收场）')
 const fxPath = new URL('./fixtures/handoffs-team-l9lagp.json', import.meta.url)
@@ -110,7 +117,7 @@ if (existsSync(fxPath)) {
     while ((m = re.exec(x.value)) !== null) out.push(m[1].trim().slice(0, 12))
     return out
   })
-  const realAll = [...realR.done, ...realR.artifacts, ...realR.pitfalls, ...realR.next]
+  const realAll = [...realR.done, ...realR.artifacts, ...realR.pitfalls, ...realR.next, ...(realR.recipes || [])]
   const a12 = (s) => s.slice(0, 12)
   const gtHit = gt.filter((g) => realR.pitfalls.some((p) => p.includes(g) || g.includes(a12(p)))).length
   console.log(`  真实 pitfalls=${realR.pitfalls.length} done=${realR.done.length} artifacts=${realR.artifacts.length} next=${realR.next.length} / GT坑信号=${gt.length} hit=${gtHit}`)
@@ -125,6 +132,42 @@ if (existsSync(fxPath)) {
   // 阴性对照（真实数据版）：纯技术描述无踩坑 → pitfalls 应为 0
   const pure = distill('pure', [{ value: '本文件定义了三个常量 A、B、C，分别用于配置超时、重试与缓存。调用方按需引用即可。' }])
   t('阴性：纯技术描述 → pitfalls=0', pure.pitfalls.length === 0, JSON.stringify(pure.pitfalls))
+  // P3c：recipes 只认「做法：」格式（不再从摘要体里猜）
+  // 63 条老 handoff 没有一条按新格式写过 → 0 条是**正确结果**，不是回归。
+  const recipes = realR.recipes || []
+  const grade = { good: recipes.filter((x) => x.quality === 'good').length, fair: recipes.filter((x) => x.quality === 'fair').length, poor: recipes.filter((x) => x.quality === 'poor').length }
+  console.log(`  真实 recipes=${recipes.length} 分级 good=${grade.good} fair=${grade.fair} poor=${grade.poor}`)
+  t('老数据 0 条 recipes（没人按新格式写过，宁缺毋滥）', recipes.length === 0, `${recipes.length} 条`)
+
+  // 新格式 handoff → 必须能抽出
+  const demo = distill('demo', [{
+    value: `task_mwxxx 给面板加 op 完成。
+产物路径：lib/index.js
+做法：给面板加一个新 op
+1) 在 index.js 里加分支，返回 json
+2) 在 client.js 里用 mut.send 调用，成功后刷新
+3) 新建 verify 脚本真跑断言
+4) npm test 后重启 web
+坑：改完别忘了重启。`,
+  }])
+  const dr = demo.recipes || []
+  const dgood = dr.filter((x) => x.quality === 'good')
+  console.log(`  新格式 demo：recipes=${dr.length} good=${dgood.length}`)
+  if (dr.length) {
+    console.log(`    标题「${dr[0].title}」步骤 ${dr[0].steps.length} 个：`)
+    dr[0].steps.forEach((s, i) => console.log(`      ${i + 1}) ${String(s).slice(0, 70)}`))
+  }
+  t('新格式 handoff → 抽出 1 条 recipe', dr.length === 1, `${dr.length}`)
+  t('新格式 recipe quality=good', dgood.length === 1)
+  t('新格式步骤 ≥2 且编号已剥离', dr.length > 0 && dr[0].steps.length >= 2 && dr[0].steps.every((s) => !/^\d+[)）.、]/.test(s)))
+  t('新格式标题干净（无 task_mw / 无「完成」收尾）', dr.length > 0 && !/task_mw|完成$/.test(dr[0].title), dr[0]?.title)
+  t('「做法：无」被跳过（不产出空 recipe）',
+    (distill('x', [{ value: '改了个错别字。做法：无' }]).recipes || []).length === 0)
+  t('没写格式的不猜（老摘要体 → 0 条）',
+    (distill('y', [{ value: '修了 A 又改了 B，然后测了 C。' }]).recipes || []).length === 0)
+  // 互斥：recipe 步骤内容不能整条出现在 pitfalls
+  const both = recipes.filter((x) => realR.pitfalls.some((p) => x.steps.some((s) => p.includes(s.slice(0, 20)))))
+  t('recipes 与 pitfalls 互斥（0 双桶）', both.length === 0)
 } else {
   t('（真实 fixture 不存在，跳过 [4]）', true)
 }
