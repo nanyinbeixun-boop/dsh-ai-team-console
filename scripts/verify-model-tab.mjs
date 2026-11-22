@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * verify-model-tab.mjs —— 模型页重构（task_mwq67zvd9hcl6v）行为锁
+ * verify-model-tab.mjs —— 模型页重构行为锁
  * 不联网、不渲染 DOM：静态核对 TabModels 源码结构 + 真跑新增的纯函数。
- * 用法：node scripts/verify-model-tab.mjs   退出码 0=全过 1=有失败
+ * 用法：node scripts/verify-model-tab.mjs 退出码 0=全过 1=有失败
  */
 import { readFileSync } from 'node:fs'
 let pass = 0, fail = 0
@@ -12,7 +12,7 @@ function t(name, cond, extra) {
 }
 const cli = readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
 // 抽出 TabModels 函数体。
-// 2026-11-22 修复：原先用注释锚点 '/* ── P20' 定位结束，但该注释块被移除后
+// 2026-11-22 修复：原先用注释锚点 '/* ── ' 定位结束，但该注释块被移除后
 // indexOf 返回 -1，cli.slice(s, -1) 把整个后半文件扫进来，导致函数体外的
 // 中文标签表(provider-disabled 等)与 ONBOARD_STEPS 的 atc-grid 被误判为
 // 「模型页渲染文案」。改为花括号配对算函数真正的结束，不依赖会过期的注释。
@@ -35,15 +35,15 @@ const tab = cli.slice(s, e)
 const helpers = cli.slice(Math.max(0, s - 1800), s)
 
 console.log('\n[1] 开发者术语不在模型页渲染文案里')
-// task_mwq7xz2z2dg4bm：原 banned 表漏掉路径/relay/内网地址/配置来源字段，
+//：原 banned 表漏掉路径/relay/内网地址/配置来源字段，
 // 42 条全绿却放过 L1749 的绝对路径泄漏。这里补齐并检查 TabModels 全部渲染文案
 // （不再只切某一段——包括高级设置折叠区在内，整段函数体都扫）。
 const banned = [
   'provider-disabled', 'provider-cap', 'route-disabled', 'audit.paid', 'code.last', 'check-free-routes.mjs', "our-free-model/*'",
-  'D:\\', '/route-config.json', 'relay', '127.0.0.1', 'configSource.file', 'configSource.source',
+  '/tmp/dsh-verify', '/route-config.json', 'relay', '127.0.0.1', 'configSource.file', 'configSource.source',
 ]
 for (const b of banned) {
-  // 注释里可以提（排查用），这里只看字符串字面量（被 h(...) 渲染的）
+ // 注释里可以提（排查用），这里只看字符串字面量（被 h(...) 渲染的）
   const rendered = tab.split('\n').filter((l) => !/^\s*\/\//.test(l) && !/^\s*\*/.test(l) && l.includes(b))
   t(`渲染文案不含「${b}」`, rendered.length === 0, rendered.slice(0, 2).join(' | '))
 }
@@ -122,8 +122,8 @@ console.log('\n[8] 纯函数真实调用（不是只看源码）')
   t('reasonOf 用停用原因且不重复', V.reasonOf({ disabledReason: '账号级限流（provider-disabled）', gateReason: '另一句' }) === '账号级限流')
   t('reasonOf 空值兜底', V.reasonOf(null) === '暂时不可用')
   t('channelNameOf 优先人读名', V.channelNameOf({ provider: 'workbuddy' }, { workbuddy: { name: '工作台' } }) === '工作台')
-  // 路径泄漏回归：即使后端给了绝对路径，文案也不含它，只说中文状态
-  const leakedPath = 'D:\\软件\\DSH\\用户数据\\ai-team-console\\route-config.json'
+ // 路径泄漏回归：即使后端给了绝对路径，文案也不含它，只说中文状态
+  const leakedPath = '/tmp/dsh-verify'
   const txt = V.configSourceTextOf({ source: 'file', file: leakedPath })
   t('configSourceTextOf(file) 不泄漏绝对路径/字段名', txt === '配置来源：本地配置文件（已生效）', txt)
   t('configSourceTextOf(file) 不含反斜杠路径或 source 英文值', !/[A-Za-z]:\\/.test(txt) && !/route-config\.json|\bfile\b/.test(txt), txt)
