@@ -5,10 +5,10 @@
  * 扫描 git 已跟踪文件（或暂存区），检测凭据、网络拓扑、账号标识。
  * 有命中返回 exit 1，可直接接进 CI 或 pre-commit。
  *
- * 用法：
- * node scripts/scan-secrets.mjs            # 扫全部已跟踪文件
- * node scripts/scan-secrets.mjs --staged   # 只扫暂存区（pre-commit 用）
- * node scripts/scan-secrets.mjs --json     # 机器可读
+ * 用法
+ * node scripts/scan-secrets.mjs # 扫全部已跟踪文件
+ * node scripts/scan-secrets.mjs --staged # 只扫暂存区（pre-commit 用）
+ * node scripts/scan-secrets.mjs --json # 机器可读
  *
  * 规则来源：见本文件 RULES 表的注释（每类都写了为什么排除）
  */
@@ -38,7 +38,7 @@ const RULES = [
   { name: 'token 赋值', re: /(?:token|authToken|accessToken|refreshToken)\s*[:=]\s*["'][^"']{16,}["']/gi, level: 'high' },
   { name: 'Authorization 头', re: /Authorization\s*:\s*["']?(?:Bearer|Basic|Token)\s+\S{12,}/gi, level: 'high' },
   { name: '订阅链接 token', re: /subscribe\?token=[A-Za-z0-9]{16,}/gi, level: 'high' },
-  // 代理节点域名：不列举具体服务商（列举本身即泄露线索），改按通用特征匹配
+ // 代理节点域名：不列举具体服务商（列举本身即泄露线索），改按通用特征匹配
   { name: '代理节点域名', re: /\b[a-z]{3,12}\d{1,3}(?:dns|node|proxy|vpn|sub)\b/gi, level: 'high' },
   { name: '公网 IPv4', re: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g, level: 'high', filter: (m) => !LOOPBACK_PRIVATE.test(m) },
   { name: '手机号(含掩码)', re: /\b1[3-9]\d(?:\*{4}|\d{4})\d{4}\b/g, level: 'high' },
@@ -49,8 +49,8 @@ const RULES = [
 /** 允许出现的示例值（文档举例、占位符） */
 const ALLOWLIST = [
   /^(?:127\.0\.0\.1|0\.0\.0\.0|255\.255\.255\.255)$/,
-  // 文档里说明「掩码也不安全」时用的占位号码，不是真实账号：
-  // 中间四位星号 + 尾号是 1234 / 0000 / 5678 这类典型示例
+ // 文档里说明「掩码也不安全」时用的占位号码，不是真实账号
+ // 中间四位星号 + 尾号是 1234 / 0000 / 5678 这类典型示例
   /^1[3-9]\d\*{4}(?:1234|0000|5678)$/,
   /@example\.(?:com|org)$/,
   /^(?:0{24}|f{24})$/,
@@ -90,7 +90,7 @@ async function main() {
     process.exit(2)
   }
 
-  // 本文件自身含规则定义，跳过避免自命中
+ // 本文件自身含规则定义，跳过避免自命中
   const SELF = 'scripts/scan-secrets.mjs'
 
   const findings = []
